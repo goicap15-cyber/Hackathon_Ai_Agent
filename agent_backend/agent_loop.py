@@ -30,6 +30,7 @@ from agent_backend.data_tools import (
 )
 from agent_backend.data_tools.db_engine import ensure_index
 from agent_backend.security.rbac import mask_records, mask_record
+from agent_backend.security.prompt_guard import detect_injection
 
 load_dotenv()
 GEMINI_API_KEY      = os.getenv("GEMINI_API_KEY")
@@ -664,6 +665,18 @@ async def run_agent(
             "action_required": str | None
         }
     """
+    # ─── Chặn prompt-injection ngay ở đầu ────────────────────────────────────
+    hits = detect_injection(user_message)
+    if hits:
+        print(f"🛡️ Đã chặn prompt-injection: {hits}")
+        return {
+            "response": "Yêu cầu của bạn có dấu hiệu tấn công prompt-injection nên đã bị chặn.",
+            "trace_logs": ['🛡️ chặn prompt-injection'],
+            "tool_called": "blocked",
+            "matched_customer_id": prev_customer_id or "N/A",
+            "action_required": None,
+        }
+
     # Đảm bảo FTS index đã sẵn sàng
     db_stats = ensure_index()
     trace_logs: list[str] = [
