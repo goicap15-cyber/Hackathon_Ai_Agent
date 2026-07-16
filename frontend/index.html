@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bank A CRM - AI Co-Pilot Dashboard</title>
+    <!-- Google Fonts for premium typography -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css?v=8">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- HEADER -->
+        <header class="app-header">
+            <div class="logo-area">
+                <span class="logo-icon">💠</span>
+                <h1>Bank A <span class="accent-text">CRM AI Co-Pilot</span></h1>
+            </div>
+            <div class="system-status">
+                <div class="status-indicator">
+                    <span class="status-dot green"></span>
+                    <span class="status-text">CRM API: Connect</span>
+                </div>
+                <div class="status-indicator">
+                    <span class="status-dot green"></span>
+                    <span class="status-text">MCP Protocol: Active</span>
+                </div>
+                <button class="btn btn-secondary btn-sm" id="open-settings-btn" style="margin-left: 10px; background: rgba(255,255,255,0.07); border: 1px solid var(--border-color); color: white; display: flex; align-items: center; gap: 5px; cursor: pointer;">⚙️ Cấu hình dữ liệu</button>
+            </div>
+            <div class="rm-profile">
+                <div class="rm-info">
+                    <p class="rm-name">RM LÊ VĂN KHANG</p>
+                    <p class="rm-role">Khách Hàng Cá Nhân (VIP)</p>
+                </div>
+                <div class="rm-avatar">LK</div>
+            </div>
+        </header>
+
+        <!-- MAIN LAYOUT -->
+        <main class="app-main">
+            <!-- LEFT DASHBOARD -->
+            <section class="dashboard-panel">
+                <div class="card glassmorphism alert-card">
+                    <div class="card-header">
+                        <h2>⚠️ Cảnh báo đáo hạn tiết kiệm</h2>
+                        <span class="badge badge-warning" id="savings-count">0 Đang chờ</span>
+                    </div>
+                    <div class="card-content">
+                        <ul class="alert-list" id="savings-alerts-list">
+                            <li class="loading-placeholder">Đang tải dữ liệu...</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card glassmorphism opportunity-card">
+                    <div class="card-header">
+                        <h2>🎯 Cơ hội bán chéo (Cross-Sell)</h2>
+                        <span class="badge badge-info" id="opportunities-count">0 Gợi ý</span>
+                    </div>
+                    <div class="card-content">
+                        <ul class="opp-list" id="opp-alerts-list">
+                            <li class="loading-placeholder">Đang tải dữ liệu...</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- API TRACING CONSOLE -->
+                <div class="card glassmorphism trace-card">
+                    <div class="card-header">
+                        <h2>💻 Live API & MCP Tracing Console</h2>
+                        <span class="status-badge pulse">Real-time</span>
+                    </div>
+                    <div class="card-content">
+                        <div class="terminal-window" id="trace-terminal">
+                            <div class="terminal-line system-line">[13:00:00] System initialized. Standby...</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- RIGHT CHATBOX -->
+            <section class="chat-panel glassmorphism">
+                <div class="chat-header">
+                    <div class="chat-ai-info">
+                        <h3>🤖 AI Co-Pilot Trợ Lý Nghiệp Vụ</h3>
+                        <p class="chat-ai-status">Sẵn sàng hỗ trợ soạn email, script và tra cứu CRM</p>
+                    </div>
+                    <div class="chat-actions">
+                        <button class="btn btn-secondary btn-sm" id="clear-chat-btn">Xóa hội thoại</button>
+                    </div>
+                </div>
+
+                <div class="chat-messages" id="chat-messages-container">
+                    <div class="message message-ai">
+                        <div class="message-avatar">🤖</div>
+                        <div class="message-content-wrapper">
+                            <div class="message-content">
+                                Xin chào RM Nguyễn Phương Linh! Tôi là AI Co-Pilot của Bank A. Tôi có thể kết nối vào dữ
+                                liệu CRM qua MCP Protocol để:
+                                <br><br>
+                                1. Tìm kiếm và liệt kê khách hàng có tiết kiệm đến hạn tuần này.
+                                <br>
+                                2. Soạn email gia hạn tiết kiệm và script gọi điện cá nhân hóa.
+                                <br>
+                                3. Phân tích hồ sơ khách hàng (Ví dụ: <strong>Lê Văn Khang</strong>) để phát hiện cơ hội
+                                bán chéo bảo hiểm liên kết tín dụng.
+                                <br><br>
+                                Hãy hỏi tôi bằng tiếng Việt tự nhiên hoặc chọn các nút gợi ý nhanh ở bên dưới!
+                            </div>
+                            <span class="message-time">Hôm nay</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- QUICK CHIPS -->
+                <div class="quick-chips">
+                    <button class="chip" data-query="Nhắc tôi những khách hàng có tiết kiệm đến hạn trong tuần này">
+                        🔔 Tiết kiệm đến hạn tuần này
+                    </button>
+                    <button class="chip" data-query="Khách Lê Văn Khang có cơ hội mua bảo hiểm gì phù hợp không?">
+                        🛡️ Tư vấn Lê Văn Khang (Bán chéo)
+                    </button>
+                    <button class="chip" data-query="Xem danh sách chiến dịch marketing đang chạy">
+                        📊 Chiến dịch active
+                    </button>
+                </div>
+
+                <!-- INPUT AREA -->
+                <div class="chat-input-area">
+                    <input type="text" id="chat-input"
+                        placeholder="Nhập câu hỏi nghiệp vụ ngân hàng tại đây... (Ví dụ: 'Tiết kiệm đến hạn')"
+                        autocomplete="off">
+                    <button id="send-btn" class="btn btn-primary">
+                        <span>Gửi</span>
+                        <span class="send-icon">🚀</span>
+                    </button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- DATA CONFIGURATION MODAL -->
+    <div class="modal-overlay" id="settings-modal">
+        <div class="modal-content glassmorphism">
+            <div class="modal-header">
+                <h2>⚙️ Cấu hình nạp dữ liệu thô (Hackathon JSON)</h2>
+                <button class="close-modal-btn" id="close-settings-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size: 12.5px; color: var(--text-secondary); margin-bottom: 15px;">
+                    Tải trực tiếp tệp cơ sở dữ liệu (.json hoặc .csv) để cập nhật nóng CSDL CRM Sandbox và ngữ cảnh phân tích của trợ lý AI.
+                </p>
+                
+                <div class="upload-section">
+                    <label class="upload-label" style="font-weight: bold; display: block; margin-bottom: 8px; font-size: 13px;">📊 Cơ sở dữ liệu hợp nhất (JSON hoặc CSV):</label>
+                    <div class="upload-row" style="display: flex; align-items: center; gap: 10px;">
+                        <input type="file" id="database-file-input" accept=".json,.csv" style="display:none;">
+                        <button class="btn btn-secondary btn-sm" id="select-database-btn" style="cursor: pointer;">Chọn file JSON/CSV...</button>
+                        <span class="file-name-label" id="database-file-name" style="font-size: 12px; color: var(--text-secondary); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Chưa chọn file</span>
+                        <button class="btn btn-primary btn-sm" id="upload-database-btn" style="cursor: pointer;" disabled>Tải lên</button>
+                    </div>
+                    <div style="margin-top: 10px; display: flex; align-items: center; gap: 6px;">
+                        <input type="checkbox" id="append-data-checkbox" style="width: 14px; height: 14px; cursor: pointer;">
+                        <label for="append-data-checkbox" style="font-size: 12px; color: var(--text-secondary); cursor: pointer; user-select: none;">Nối tiếp vào dữ liệu hiện tại (không xóa dữ liệu cũ)</label>
+                    </div>
+                </div>
+                
+                <div class="modal-status-message" id="modal-status-msg" style="display:none; margin-top: 15px; padding: 10px; border-radius: 6px; font-size: 12px;"></div>
+                
+                <div class="upload-section" style="margin-top: 25px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 12.5px; color: var(--text-secondary);">Dọn dẹp CSDL tùy biến:</span>
+                    <button class="btn btn-secondary btn-sm" id="clear-database-btn" style="cursor: pointer; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; display: flex; align-items: center; gap: 4px;">
+                        🗑️ Xóa toàn bộ dữ liệu
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Markdowns parser & our App JS -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="app.js?v=9"></script>
+</body>
+
+</html>

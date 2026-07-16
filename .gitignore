@@ -1,0 +1,39 @@
+# Ignore API keys and local configs
+.env
+agent_backend/audit.log
+
+# Ignore Python cached files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Ignore IDE configs
+.vscode/
+.idea/
+.gemini/
+
+# Ignore OS files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Secrets
+.env
+.env.*
+!.env.example
+notion_account.json
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Node
+node_modules/
+
+# AI-generated files
+ai_changes.patch
+ai_changes_invalid.patch
