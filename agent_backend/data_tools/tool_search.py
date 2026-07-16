@@ -39,7 +39,7 @@ def tool_search_id(id_value: str) -> dict:
     Thử theo thứ tự:
       1. Match exact trên record_id column
       2. FTS match toàn bộ id_value (bắt các ID nằm trong fields khác)
-    
+
     Returns:
         {"found": bool, "table": str, "record": dict, "trace": str}
     """
@@ -78,6 +78,79 @@ def tool_search_id(id_value: str) -> dict:
         }
     return {"found": False, "table": None, "id": None, "record": None,
             "trace": f"ID '{clean_id}' not found"}
+
+
+# ─── Tool: Query Records ─────────────────────────────────────────────────────
+
+def tool_query_records(table, filters=None, sort_by=None, order='desc', limit=10,
+                       date_field=None, date_from=None, date_to=None):
+    """
+    Query records của 1 bảng, hỗ trợ filter theo cặp field=value, sort và limit.
+
+    Args:
+        table:      Tên bảng (table_name)
+        filters:    dict các cặp field=value cần khớp chính xác (optional).
+                    Nếu cả hai giá trị là string thì so sánh không phân biệt hoa thường.
+        sort_by:    Field dùng để sort (optional). None được đẩy xuống cuối.
+        order:      'desc' (mặc định) hoặc 'asc'.
+        limit:      Số record trả về tối đa (default 10).
+        date_field: Field chứa giá trị ngày (chuỗi ISO) để lọc theo khoảng (optional).
+        date_from:  Giới hạn dưới (chuỗi ISO), so sánh trực tiếp (optional).
+        date_to:    Giới hạn trên (chuỗi ISO), so sánh trực tiếp (optional).
+
+    Returns:
+        {'table', 'total_matched', 'returned', 'records'}
+    """
+    conn = new_conn()
+    cur  = conn.cursor()
+    cur.execute("""
+        SELECT record_json FROM fts_records WHERE table_name = ?
+    """, (table,))
+    rows = cur.fetchall()
+    conn.close()
+
+    records = [json.loads(r["record_json"]) for r in rows]
+
+    if filters:
+        def _match(rec):
+            for field, value in filters.items():
+                rec_val = rec.get(field)
+                if isinstance(rec_val, str) and isinstance(value, str):
+                    if rec_val.lower() != value.lower():
+                        return False
+                else:
+                    if rec_val != value:
+                        return False
+            return True
+        records = [rec for rec in records if _match(rec)]
+
+    if date_field and (date_from or date_to):
+        def _match_date(rec):
+            value = rec.get(date_field)
+            if value is None:
+                return False
+            if date_from is not None and value < date_from:
+                return False
+            if date_to is not None and value > date_to:
+                return False
+            return True
+        records = [rec for rec in records if _match_date(rec)]
+
+    if sort_by:
+        with_val    = [rec for rec in records if rec.get(sort_by) is not None]
+        without_val = [rec for rec in records if rec.get(sort_by) is None]
+        with_val.sort(key=lambda rec: rec.get(sort_by), reverse=(order == 'desc'))
+        records = with_val + without_val
+
+    total_matched = len(records)
+    records = records[:limit]
+
+    return {
+        "table":          table,
+        "total_matched":  total_matched,
+        "returned":       len(records),
+        "records":        records,
+    }
 
 
 # ─── Tool 2: Full-Text Search ────────────────────────────────────────────────
@@ -183,19 +256,21 @@ def tool_get_schema(top_n: int = 15) -> dict:
         SELECT table_name, record_count, field_names, sample_json
         FROM db_schema ORDER BY record_count DESC LIMIT ?
     """, (top_n,))
+    schema_rows = cur.fetchall()
     rows = conn.execute("SELECT SUM(record_count), COUNT(*) FROM db_schema").fetchone()
     total_records = rows[0] or 0
     total_tables  = rows[1] or 0
-    conn.close()
 
     tables = []
-    for r in cur.fetchall():
+    for r in schema_rows:
         tables.append({
             "table":       r["table_name"],
             "count":       r["record_count"],
             "fields":      json.loads(r["field_names"]),
             "sample":      json.loads(r["sample_json"]),
         })
+
+    conn.close()
 
     return {
         "total_records": total_records,

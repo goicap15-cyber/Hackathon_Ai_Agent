@@ -10,6 +10,9 @@ let conversationContext = {
     lastMatchedName: null,  // Tên hiển thị
 };
 
+// Conversation history: lưu các lượt hội thoại trước đó
+let conversationHistory = [];
+
 // DOM Elements
 const savingsAlertsList = document.getElementById("savings-alerts-list");
 const oppAlertsList = document.getElementById("opp-alerts-list");
@@ -232,7 +235,8 @@ async function sendUserMessage(message) {
             body: JSON.stringify({
                 message: message,
                 rm_name: "Nguyễn Phương Linh",
-                customer_id: conversationContext.lastMatchedId  // ← gửi context cũ
+                customer_id: conversationContext.lastMatchedId,  // ← gửi context cũ
+                history: conversationHistory  // ← các lượt TRƯỚC, chưa gồm tin hiện tại
             })
         });
 
@@ -240,6 +244,10 @@ async function sendUserMessage(message) {
 
         if (response.ok) {
             const data = await response.json();
+
+            // ── Lưu lại lượt hội thoại vào conversationHistory ──────────────
+            conversationHistory.push({ role: 'user', content: message });
+            conversationHistory.push({ role: 'assistant', content: data.response });
 
             // ── Cập nhật conversation context ──────────────────────────────
             if (data.matched_customer_id && data.matched_customer_id !== "N/A") {
@@ -332,6 +340,7 @@ chatInput.addEventListener("keydown", (e) => {
 
 // Clear chat history
 clearChatBtn.addEventListener("click", () => {
+    conversationHistory = [];
     chatMessagesContainer.innerHTML = `
         <div class="message message-ai">
             <div class="message-avatar">🤖</div>

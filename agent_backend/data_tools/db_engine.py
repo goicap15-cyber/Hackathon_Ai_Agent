@@ -18,12 +18,12 @@ import unicodedata
 import threading
 
 # ─── Paths ──────────────────────────────────────────────────────────────────
-_BASE = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "mock_crm"))
-UNIFIED_DB_PATH = os.path.join(_BASE, "unified_db.json")
-SQLITE_DB_PATH  = os.path.join(_BASE, "unified_db.sqlite")
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+UNIFIED_DB_PATH = os.path.join(_PROJECT_ROOT, 'mock_crm', 'unified_db.json')
+SQLITE_DB_PATH  = os.path.join(_PROJECT_ROOT, 'mock_crm', 'unified_db.sqlite')
 
 # ─── Cache state ─────────────────────────────────────────────────────────────
-_rebuild_lock = threading.Lock()
+_rebuild_lock = threading. Lock()
 _cache = {"mtime": -1.0, "total_records": 0, "total_tables": 0}
 
 
@@ -169,6 +169,9 @@ def ensure_index() -> dict:
     Kiểm tra mtime của unified_db.json.
     Nếu thay đổi → rebuild index (thread-safe).
     Trả về cache stats.
+
+    Lưu ý: sau khi rebuild xong KHÔNG giữ lại connection nào để dùng cho query.
+    Mỗi query mở connection mới qua _get_conn().
     """
     try:
         mtime = os.path.getmtime(UNIFIED_DB_PATH)
@@ -186,10 +189,24 @@ def ensure_index() -> dict:
     return _cache.copy()
 
 
-def new_conn() -> sqlite3.Connection:
+def _get_conn() -> sqlite3. Connection:
+    """
+    Trả về một sqlite3 connection MỚI mỗi lần gọi (không giữ connection toàn cục sống lâu).
+
+    Cách dùng chuẩn cho mọi hàm query/search:
+        conn = _get_conn()
+        try:
+            ...
+        finally:
+            conn.close()
+    """
+    return sqlite3.connect(SQLITE_DB_PATH, check_same_thread=False)
+
+
+def new_conn() -> sqlite3. Connection:
     """Mở connection mới đến SQLite DB (lightweight, safe for concurrent reads)."""
     ensure_index()
-    conn = sqlite3.connect(SQLITE_DB_PATH, check_same_thread=False)
+    conn = _get_conn()
     conn.execute("PRAGMA journal_mode=WAL")
-    conn.row_factory = sqlite3.Row
+    conn.row_factory = sqlite3. Row
     return conn

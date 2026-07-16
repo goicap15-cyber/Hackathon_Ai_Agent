@@ -43,6 +43,8 @@ class ChatRequest(BaseModel):
     message: str
     customer_id: Optional[str] = None
     rm_name: str = "Nguyễn Phương Linh"
+    history: list = []
+    role: str = 'rm'
 
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -96,6 +98,8 @@ async def chat_endpoint(request: ChatRequest):
         user_message=request.message,
         prev_customer_id=request.customer_id or "",
         rm_name=request.rm_name,
+        history=request.history,
+        role=request.role,
     )
 
     log_audit(

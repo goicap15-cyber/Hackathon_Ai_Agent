@@ -1,6 +1,8 @@
 from enum import Enum
 
 class Role(str, Enum):
+    RM         = "rm"          # Nhân viên QHKH — hạn chế
+    MANAGER    = "manager"     # Quản lý — giám sát, xem rộng hơn
     ACCOUNTANT = "accountant"
     WAREHOUSE  = "warehouse"
     AUDITOR    = "auditor"
@@ -8,10 +10,8 @@ class Role(str, Enum):
 
 # Trường nhạy cảm khớp schema thật của mock_crm/unified_db.json
 SENSITIVE_FIELDS = {
-    # thẻ / tài khoản
     "credit_card", "debit_card", "card_number",
     "bank_account", "bank_account_number", "iban", "cvv",
-    # PII & tài chính cá nhân
     "date_of_birth",
     "monthly_income_vnd",
     "outstanding_balance_vnd",
@@ -20,26 +20,32 @@ SENSITIVE_FIELDS = {
     "occupation",
 }
 
+# Ai được xem GIÁ TRỊ THẬT của trường nhạy cảm.
+# Least-privilege: vai trò không khai báo -> False (bị mask).
 ROLE_CAN_VIEW_SENSITIVE = {
+    Role.RM:         False,
+    Role.MANAGER:    True,
     Role.ACCOUNTANT: True,
-    Role.WAREHOUSE:  False,   # kho KHÔNG xem dữ liệu tài chính/PII
-    Role.AUDITOR:    True,    # kiểm toán read-only toàn bộ
+    Role.WAREHOUSE:  False,
+    Role.AUDITOR:    True,
     Role.ADMIN:      True,
 }
 
 def _mask(value) -> str:
     s = str(value)
     digits = "".join(ch for ch in s if ch.isdigit())
-    if len(digits) >= 8:            # số thẻ/tài khoản -> giữ 4 số cuối
+    if len(digits) >= 8:
         return "••••" + s[-4:]
-    return "[đã ẩn theo quyền]"     # PII khác -> ẩn hoàn toàn
+    return "[đã ẩn theo quyền]"
+
+def can_view_sensitive(role: str) -> bool:
+    try:
+        return ROLE_CAN_VIEW_SENSITIVE.get(Role(role), False)
+    except ValueError:
+        return False
 
 def mask_record(record: dict, role: str) -> dict:
-    try:
-        allowed = ROLE_CAN_VIEW_SENSITIVE.get(Role(role), False)
-    except ValueError:
-        allowed = False
-    if allowed:
+    if can_view_sensitive(role):
         return record
     return {k: (_mask(v) if k.lower() in SENSITIVE_FIELDS else v)
             for k, v in record.items()}
