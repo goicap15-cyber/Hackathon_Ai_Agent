@@ -10,6 +10,7 @@ import logging
 import datetime
 import httpx
 import json
+import uuid
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
@@ -45,11 +46,23 @@ class ChatRequest(BaseModel):
 
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
-def log_audit(rm_name: str, action: str, details: str) -> None:
-    ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+def log_audit(actor_id, action, details, role='', evidence_ids=None, policy_decision='allow') -> None:
+    data_dir = os.path.join(os.path.dirname(__file__), "data")
+    audit_path = os.path.join(data_dir, "audit.log")
+    entry = {
+        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "correlation_id": str(uuid.uuid4()),
+        "actor_id": actor_id,
+        "actor_role": role,
+        "action": action,
+        "policy_decision": policy_decision,
+        "evidence_ids": evidence_ids if evidence_ids is not None else [],
+        "details": details,
+    }
     try:
-        with open(AUDIT_LOG_PATH, "a", encoding="utf-8") as f:
-            f.write(f"[{ts}] RM: {rm_name} | Action: {action} | Details: {details}\n")
+        os.makedirs(data_dir, exist_ok=True)
+        with open(audit_path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
     except OSError as exc:
         # Auditing must never break the main request flow.
         logger.warning("Failed to write audit log: %s", exc)
@@ -86,7 +99,7 @@ async def chat_endpoint(request: ChatRequest):
     )
 
     log_audit(
-        rm_name=request.rm_name,
+        actor_id=request.rm_name,
         action="Agent Chat",
         details=f"Query: '{request.message}' | Ctx: {request.customer_id}",
     )
