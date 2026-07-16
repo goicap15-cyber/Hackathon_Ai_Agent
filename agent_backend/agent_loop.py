@@ -29,6 +29,7 @@ from agent_backend.data_tools import (
     tool_get_schema,
 )
 from agent_backend.data_tools.db_engine import ensure_index
+from agent_backend.security.rbac import mask_records, mask_record
 
 load_dotenv()
 GEMINI_API_KEY      = os.getenv("GEMINI_API_KEY")
@@ -41,6 +42,15 @@ ANTHROPIC_MODEL     = os.getenv("ANTHROPIC_MODEL", "claude-opus-4-5")
 FLARE_API_KEY       = os.getenv("FLARE_API_KEY")
 FLARE_BASE_URL      = os.getenv("FLARE_BASE_URL", "https://9flare.com/api/v1").rstrip("/")
 FLARE_MODEL         = os.getenv("FLARE_MODEL", "pro/claude-sonnet-4-5")
+
+# Giới hạn số vòng lặp tool multi-turn cho mỗi agent
+MAX_TOOL_ITERATIONS = int(os.getenv('MAX_TOOL_ITERATIONS', '6'))
+
+# Thông báo khi chạm giới hạn số vòng lặp tool
+_LIMIT_REACHED_MSG = (
+    "Yêu cầu của bạn khá phức tạp và cần nhiều bước xử lý hơn mức cho phép. "
+    "Vui lòng chia nhỏ câu hỏi thành các phần đơn giản hơn để tôi có thể hỗ trợ bạn tốt hơn."
+)
 
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
@@ -62,55 +72,55 @@ NGUYÊN TẮC:
 
 # ─── Tool definitions ────────────────────────────────────────────────────────
 GEMINI_TOOLS = [
-    protos.Tool(function_declarations=[
-        protos.FunctionDeclaration(
+    protos. Tool(function_declarations=[
+        protos. FunctionDeclaration(
             name="search_records",
             description=(
                 "Tìm kiếm bất kỳ bản ghi nào trong cơ sở dữ liệu theo tên người, "
                 "từ khóa, địa điểm, sản phẩm, hoặc bất kỳ giá trị nào. "
                 "Dùng khi user hỏi về một người, sự kiện, giao dịch, sản phẩm..."
             ),
-            parameters=protos.Schema(
-                type=protos.Type.OBJECT,
+            parameters=protos. Schema(
+                type=protos. Type. OBJECT,
                 properties={
-                    "query": protos.Schema(
-                        type=protos.Type.STRING,
+                    "query": protos. Schema(
+                        type=protos. Type. STRING,
                         description="Từ khóa tìm kiếm. VD: 'Lê Khánh Huy', 'CUS_000514', 'vay mua nhà', 'Hà Nội'"
                     ),
-                    "limit": protos.Schema(
-                        type=protos.Type.INTEGER,
+                    "limit": protos. Schema(
+                        type=protos. Type. INTEGER,
                         description="Số kết quả tối đa trả về (mặc định 20)"
                     ),
                 },
                 required=["query"]
             )
         ),
-        protos.FunctionDeclaration(
+        protos. FunctionDeclaration(
             name="lookup_by_id",
             description=(
                 "Tra cứu bản ghi theo mã ID chính xác. "
                 "Dùng khi user cung cấp mã cụ thể như CUS_001, EVT_003, INT_004..."
             ),
-            parameters=protos.Schema(
-                type=protos.Type.OBJECT,
+            parameters=protos. Schema(
+                type=protos. Type. OBJECT,
                 properties={
-                    "id": protos.Schema(
-                        type=protos.Type.STRING,
+                    "id": protos. Schema(
+                        type=protos. Type. STRING,
                         description="Mã ID cần tra cứu. VD: CUS_000514, EVT_003933"
                     ),
                 },
                 required=["id"]
             )
         ),
-        protos.FunctionDeclaration(
+        protos. FunctionDeclaration(
             name="get_database_overview",
             description=(
                 "Xem tổng quan cơ sở dữ liệu: có bao nhiêu bảng, bảng nào, bao nhiêu bản ghi, "
                 "các cột có trong dữ liệu. Dùng khi user hỏi về cấu trúc dữ liệu hoặc muốn biết "
                 "hệ thống có thể hỗ trợ gì."
             ),
-            parameters=protos.Schema(
-                type=protos.Type.OBJECT,
+            parameters=protos. Schema(
+                type=protos. Type. OBJECT,
                 properties={}
             )
         ),
@@ -118,7 +128,7 @@ GEMINI_TOOLS = [
 ]
 
 # ─── Tool executor ───────────────────────────────────────────────────────────
-def execute_tool(tool_name: str, tool_args: dict) -> str:
+def execute_tool(tool_name: str, tool_args: dict, role: str = 'auditor') -> str:
     """Thực thi tool call và trả về kết quả dạng string."""
     try:
         if tool_name == "search_records":
@@ -130,6 +140,7 @@ def execute_tool(tool_name: str, tool_args: dict) -> str:
             if result["total_found"] == 0:
                 return f"Không tìm thấy bản ghi nào khớp với '{query}' trong cơ sở dữ liệu."
             records = [r["record"] for r in result["results"]]
+            records = mask_records(records, role)
             return json.dumps({
                 "total_found": result["total_found"],
                 "records": records
@@ -142,7 +153,7 @@ def execute_tool(tool_name: str, tool_args: dict) -> str:
             result = tool_search_id(id_val)
             if not result["found"]:
                 return f"Không tìm thấy bản ghi với mã '{id_val}'."
-            return json.dumps(result["record"], ensure_ascii=False, indent=2)
+            return json.dumps(mask_record(result["record"], role), ensure_ascii=False, indent=2)
 
         elif tool_name == "get_database_overview":
             schema = tool_get_schema(top_n=10)
@@ -169,7 +180,7 @@ def execute_tool(tool_name: str, tool_args: dict) -> str:
 async def _run_gemini_agent(
     user_message: str,
     context_hint: str = "",
-    max_iters: int = 5
+    max_iters: int = MAX_TOOL_ITERATIONS
 ) -> tuple[str, list[str]]:
     """
     Agent loop dùng Gemini function calling.
@@ -181,7 +192,7 @@ async def _run_gemini_agent(
     if context_hint:
         system_prompt += f"\nNGỮ CẢNH HỘI THOẠI TRƯỚC:\n{context_hint}"
 
-    agent_model = genai.GenerativeModel(
+    agent_model = genai. GenerativeModel(
         model_name="gemini-2.0-flash",
         system_instruction=system_prompt,
         tools=GEMINI_TOOLS,
@@ -222,12 +233,12 @@ async def _run_gemini_agent(
             tool_args = dict(fc.args) if fc.args else {}
             trace_logs.append(f"🔧 Tool: {tool_name}({json.dumps(tool_args, ensure_ascii=False)})")
 
-            result = execute_tool(tool_name, tool_args)
+            result = execute_tool(tool_name, tool_args, role='auditor')
             trace_logs.append(f"📊 Kết quả: {result[:150]}...")
 
             function_response_parts.append(
-                protos.Part(
-                    function_response=protos.FunctionResponse(
+                protos. Part(
+                    function_response=protos. FunctionResponse(
                         name=tool_name,
                         response={"result": result}
                     )
@@ -235,16 +246,18 @@ async def _run_gemini_agent(
             )
 
         # Gửi kết quả tool về cho LLM
-        messages.append(protos.Content(parts=function_response_parts, role="user"))
+        messages.append(protos. Content(parts=function_response_parts, role="user"))
 
-    return "Xin lỗi, tôi không thể xử lý yêu cầu này. Vui lòng thử lại.", trace_logs
+    # Chạm giới hạn số vòng lặp tool
+    trace_logs.append(f"⚠️ Gemini agent đạt giới hạn {max_iters} vòng lặp tool")
+    return _LIMIT_REACHED_MSG, trace_logs
 
 
 # ─── OpenRouter Fallback Agent (structured JSON) ─────────────────────────────
 async def _run_openrouter_agent(
     user_message: str,
     context_hint: str = "",
-    max_iters: int = 3
+    max_iters: int = MAX_TOOL_ITERATIONS
 ) -> tuple[str, list[str]]:
     """
     Fallback agent dùng OpenRouter với structured JSON approach.
@@ -277,7 +290,7 @@ async def _run_openrouter_agent(
         "X-Title": "CRM AI Agent"
     }
 
-    async with httpx.AsyncClient(timeout=60.0) as client:
+    async with httpx. AsyncClient(timeout=60.0) as client:
         for iteration in range(max_iters):
             resp = await client.post(
                 "https://openrouter.ai/api/v1/chat/completions",
@@ -311,7 +324,7 @@ async def _run_openrouter_agent(
                     candidate = json.loads(content[start:end])
                     if "tool" in candidate and "args" in candidate:
                         tool_call = candidate
-                except json.JSONDecodeError:
+                except json. JSONDecodeError:
                     pass
 
             if not tool_call:
@@ -324,7 +337,7 @@ async def _run_openrouter_agent(
             tool_args = tool_call.get("args", {})
             trace_logs.append(f"🔧 Tool: {tool_name}({json.dumps(tool_args, ensure_ascii=False)})")
 
-            result = execute_tool(tool_name, tool_args)
+            result = execute_tool(tool_name, tool_args, role='auditor')
             trace_logs.append(f"📊 Kết quả: {result[:150]}...")
 
             # Thêm vào conversation
@@ -333,6 +346,10 @@ async def _run_openrouter_agent(
                 "role": "user",
                 "content": f"Kết quả từ tool {tool_name}:\n{result}\n\nBây giờ hãy trả lời câu hỏi của người dùng."
             })
+        else:
+            # Chạm giới hạn số vòng lặp tool (loop kết thúc mà không break)
+            trace_logs.append(f"⚠️ OpenRouter agent đạt giới hạn {max_iters} vòng lặp tool")
+            return _LIMIT_REACHED_MSG, trace_logs
 
     return "Xin lỗi, không thể xử lý yêu cầu.", trace_logs
 
@@ -341,7 +358,7 @@ async def _run_openrouter_agent(
 async def _run_claude_agent(
     user_message: str,
     context_hint: str = "",
-    max_iters: int = 5
+    max_iters: int = MAX_TOOL_ITERATIONS
 ) -> tuple[str, list[str]]:
     """
     Agent dùng Claude qua Beeknoee proxy (OpenAI-compatible format).
@@ -419,7 +436,7 @@ async def _run_claude_agent(
         {"role": "user",   "content": user_message},
     ]
 
-    async with httpx.AsyncClient(timeout=60.0) as client:
+    async with httpx. AsyncClient(timeout=60.0) as client:
         for iteration in range(max_iters):
             payload = {
                 "model": ANTHROPIC_MODEL,
@@ -460,11 +477,11 @@ async def _run_claude_agent(
                 tool_name = tc["function"]["name"]
                 try:
                     tool_args = json.loads(tc["function"].get("arguments", "{}"))
-                except json.JSONDecodeError:
+                except json. JSONDecodeError:
                     tool_args = {}
 
                 trace_logs.append(f"🔧 Tool: {tool_name}({json.dumps(tool_args, ensure_ascii=False)})")
-                result = execute_tool(tool_name, tool_args)
+                result = execute_tool(tool_name, tool_args, role='auditor')
                 trace_logs.append(f"📊 Kết quả: {result[:150]}...")
 
                 messages.append({
@@ -472,6 +489,10 @@ async def _run_claude_agent(
                     "tool_call_id": tc["id"],
                     "content":      result
                 })
+        else:
+            # Chạm giới hạn số vòng lặp tool (loop kết thúc mà không break)
+            trace_logs.append(f"⚠️ Claude/Beeknoee agent đạt giới hạn {max_iters} vòng lặp tool")
+            return _LIMIT_REACHED_MSG, trace_logs
 
     return "Xin lỗi, Claude/Beeknoee không thể xử lý yêu cầu.", trace_logs
 
@@ -480,7 +501,7 @@ async def _run_claude_agent(
 async def _run_flare_agent(
     user_message: str,
     context_hint: str = "",
-    max_iters: int = 5
+    max_iters: int = MAX_TOOL_ITERATIONS
 ) -> tuple[str, list[str]]:
     """
     Agent dùng 9Flare Claude API (OpenAI-compatible format).
@@ -558,7 +579,7 @@ async def _run_flare_agent(
         {"role": "user",   "content": user_message},
     ]
 
-    async with httpx.AsyncClient(timeout=60.0) as client:
+    async with httpx. AsyncClient(timeout=60.0) as client:
         for iteration in range(max_iters):
             payload = {
                 "model": FLARE_MODEL,
@@ -604,11 +625,11 @@ async def _run_flare_agent(
                 tool_name = tc["function"]["name"]
                 try:
                     tool_args = json.loads(tc["function"].get("arguments", "{}"))
-                except json.JSONDecodeError:
+                except json. JSONDecodeError:
                     tool_args = {}
 
                 trace_logs.append(f"🔧 Tool: {tool_name}({json.dumps(tool_args, ensure_ascii=False)})")
-                result = execute_tool(tool_name, tool_args)
+                result = execute_tool(tool_name, tool_args, role='auditor')
                 trace_logs.append(f"📊 Kết quả: {result[:150]}...")
 
                 messages.append({
@@ -616,6 +637,10 @@ async def _run_flare_agent(
                     "tool_call_id": tc["id"],
                     "content":      result
                 })
+        else:
+            # Chạm giới hạn số vòng lặp tool (loop kết thúc mà không break)
+            trace_logs.append(f"⚠️ 9Flare agent đạt giới hạn {max_iters} vòng lặp tool")
+            return _LIMIT_REACHED_MSG, trace_logs
 
     return "Xin lỗi, 9Flare không thể xử lý yêu cầu.", trace_logs
 
