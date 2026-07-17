@@ -23,6 +23,7 @@ const chatMessagesContainer = document.getElementById("chat-messages-container")
 const chatInput = document.getElementById("chat-input");
 const sendBtn = document.getElementById("send-btn");
 const clearChatBtn = document.getElementById("clear-chat-btn");
+const roleSelect = document.getElementById("role-select");
 const quickChips = document.querySelectorAll(".chip");
 
 // Write logs into UI Terminal
@@ -235,6 +236,7 @@ async function sendUserMessage(message) {
             body: JSON.stringify({
                 message: message,
                 rm_name: "Nguyễn Phương Linh",
+                role: roleSelect ? roleSelect.value : "rm",  // ← vai trò từ dropdown (RBAC)
                 customer_id: conversationContext.lastMatchedId,  // ← gửi context cũ
                 history: conversationHistory  // ← các lượt TRƯỚC, chưa gồm tin hiện tại
             })

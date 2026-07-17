@@ -29,7 +29,9 @@
                     <span class="status-dot green"></span>
                     <span class="status-text">MCP Protocol: Active</span>
                 </div>
-                <button class="btn btn-secondary btn-sm" id="open-settings-btn" style="margin-left: 10px; background: rgba(255,255,255,0.07); border: 1px solid var(--border-color); color: white; display: flex; align-items: center; gap: 5px; cursor: pointer;">⚙️ Cấu hình dữ liệu</button>
+                <button class="btn btn-secondary btn-sm" id="open-settings-btn"
+                    style="margin-left: 10px; background: rgba(255,255,255,0.07); border: 1px solid var(--border-color); color: white; display: flex; align-items: center; gap: 5px; cursor: pointer;">⚙️
+                    Cấu hình dữ liệu</button>
             </div>
             <div class="rm-profile">
                 <div class="rm-info">
@@ -90,6 +92,19 @@
                         <p class="chat-ai-status">Sẵn sàng hỗ trợ soạn email, script và tra cứu CRM</p>
                     </div>
                     <div class="chat-actions">
+                        <label
+                            style="display:flex;align-items:center;gap:6px;font-size:12px;color:#cbd5e1;margin-right:10px;">
+                            👤 Vai trò:
+                            <select id="role-select"
+                                style="background:#1e293b;color:#fff;border:1px solid rgba(255,255,255,0.2);border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;">
+                                <option value="rm" style="background:#1e293b;color:#fff;">RM (QHKH)</option>
+                                <option value="manager" style="background:#1e293b;color:#fff;">Manager</option>
+                                <option value="accountant" style="background:#1e293b;color:#fff;">Accountant</option>
+                                <option value="warehouse" style="background:#1e293b;color:#fff;">Warehouse</option>
+                                <option value="auditor" style="background:#1e293b;color:#fff;">Auditor</option>
+                                <option value="admin" style="background:#1e293b;color:#fff;">Admin</option>
+                            </select>
+                        </label>
                         <button class="btn btn-secondary btn-sm" id="clear-chat-btn">Xóa hội thoại</button>
                     </div>
                 </div>
@@ -152,28 +167,41 @@
             </div>
             <div class="modal-body">
                 <p style="font-size: 12.5px; color: var(--text-secondary); margin-bottom: 15px;">
-                    Tải trực tiếp tệp cơ sở dữ liệu (.json hoặc .csv) để cập nhật nóng CSDL CRM Sandbox và ngữ cảnh phân tích của trợ lý AI.
+                    Tải trực tiếp tệp cơ sở dữ liệu (.json hoặc .csv) để cập nhật nóng CSDL CRM Sandbox và ngữ cảnh phân
+                    tích của trợ lý AI.
                 </p>
-                
+
                 <div class="upload-section">
-                    <label class="upload-label" style="font-weight: bold; display: block; margin-bottom: 8px; font-size: 13px;">📊 Cơ sở dữ liệu hợp nhất (JSON hoặc CSV):</label>
+                    <label class="upload-label"
+                        style="font-weight: bold; display: block; margin-bottom: 8px; font-size: 13px;">📊 Cơ sở dữ liệu
+                        hợp nhất (JSON hoặc CSV):</label>
                     <div class="upload-row" style="display: flex; align-items: center; gap: 10px;">
                         <input type="file" id="database-file-input" accept=".json,.csv" style="display:none;">
-                        <button class="btn btn-secondary btn-sm" id="select-database-btn" style="cursor: pointer;">Chọn file JSON/CSV...</button>
-                        <span class="file-name-label" id="database-file-name" style="font-size: 12px; color: var(--text-secondary); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Chưa chọn file</span>
-                        <button class="btn btn-primary btn-sm" id="upload-database-btn" style="cursor: pointer;" disabled>Tải lên</button>
+                        <button class="btn btn-secondary btn-sm" id="select-database-btn" style="cursor: pointer;">Chọn
+                            file JSON/CSV...</button>
+                        <span class="file-name-label" id="database-file-name"
+                            style="font-size: 12px; color: var(--text-secondary); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Chưa
+                            chọn file</span>
+                        <button class="btn btn-primary btn-sm" id="upload-database-btn" style="cursor: pointer;"
+                            disabled>Tải lên</button>
                     </div>
                     <div style="margin-top: 10px; display: flex; align-items: center; gap: 6px;">
-                        <input type="checkbox" id="append-data-checkbox" style="width: 14px; height: 14px; cursor: pointer;">
-                        <label for="append-data-checkbox" style="font-size: 12px; color: var(--text-secondary); cursor: pointer; user-select: none;">Nối tiếp vào dữ liệu hiện tại (không xóa dữ liệu cũ)</label>
+                        <input type="checkbox" id="append-data-checkbox"
+                            style="width: 14px; height: 14px; cursor: pointer;">
+                        <label for="append-data-checkbox"
+                            style="font-size: 12px; color: var(--text-secondary); cursor: pointer; user-select: none;">Nối
+                            tiếp vào dữ liệu hiện tại (không xóa dữ liệu cũ)</label>
                     </div>
                 </div>
-                
-                <div class="modal-status-message" id="modal-status-msg" style="display:none; margin-top: 15px; padding: 10px; border-radius: 6px; font-size: 12px;"></div>
-                
-                <div class="upload-section" style="margin-top: 25px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px; display: flex; justify-content: space-between; align-items: center;">
+
+                <div class="modal-status-message" id="modal-status-msg"
+                    style="display:none; margin-top: 15px; padding: 10px; border-radius: 6px; font-size: 12px;"></div>
+
+                <div class="upload-section"
+                    style="margin-top: 25px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px; display: flex; justify-content: space-between; align-items: center;">
                     <span style="font-size: 12.5px; color: var(--text-secondary);">Dọn dẹp CSDL tùy biến:</span>
-                    <button class="btn btn-secondary btn-sm" id="clear-database-btn" style="cursor: pointer; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; display: flex; align-items: center; gap: 4px;">
+                    <button class="btn btn-secondary btn-sm" id="clear-database-btn"
+                        style="cursor: pointer; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; display: flex; align-items: center; gap: 4px;">
                         🗑️ Xóa toàn bộ dữ liệu
                     </button>
                 </div>
@@ -183,7 +211,7 @@
 
     <!-- Markdowns parser & our App JS -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="app.js?v=9"></script>
+    <script src="app.js?v=10"></script>
 </body>
 
 </html>
