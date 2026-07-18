@@ -335,3 +335,44 @@ svg.i{width:1em;height:1em;vertical-align:-.15em;flex-shrink:0}
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+
+/* Nút lưu ghi chú (nổi khi bôi đen) */
+.save-note-btn{position:fixed;z-index:60;display:none;align-items:center;gap:7px;background:var(--surface-dark);color:#fff;border:none;border-radius:var(--r-full);padding:9px 15px;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;box-shadow:0 6px 20px rgba(122,20,16,.35);white-space:nowrap}
+.save-note-btn.show{display:inline-flex}
+.save-note-btn:hover{background:var(--primary)}
+.save-note-btn svg{width:14px;height:14px}
+/* Card ghi chú */
+.note-card{background:var(--canvas);border:1px solid var(--hairline);border-radius:var(--r-md);margin-bottom:10px;overflow:hidden}
+.note-src{display:flex;align-items:center;gap:7px;padding:9px 12px;background:var(--surface-card);border-bottom:1px solid var(--hairline);font-size:11.5px;color:var(--mute);text-align:left}
+.note-src svg{width:13px;height:13px;color:var(--primary);flex-shrink:0}
+.note-src b{color:var(--charcoal);font-weight:700}
+.note-src .note-del{margin-left:auto;border:none;background:none;color:var(--ash);cursor:pointer;font-size:15px;line-height:1;padding:0 2px}
+.note-src .note-del:hover{color:var(--error)}
+.note-body{padding:11px 13px;font-size:13px;line-height:1.6;color:var(--body);border-left:3px solid var(--gold-deep);cursor:pointer;text-align:left;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.note-body:hover{background:var(--surface-soft)}
+.note-card.open .note-body{white-space:normal}
+.note-toggle{display:flex;align-items:center;gap:4px;margin:0 13px 4px;padding:5px 0;border:none;background:none;color:var(--primary);font-family:inherit;font-size:11.5px;font-weight:700;cursor:pointer}
+.note-toggle svg{width:13px;height:13px;transition:transform .2s}
+.note-card.open .note-toggle svg{transform:rotate(180deg)}
+.note-qlist{padding:0 13px 4px;display:flex;flex-direction:column;gap:5px}
+.nq-item{display:flex;align-items:flex-start;gap:7px;background:var(--gold-bg);border-radius:var(--r-sm);padding:7px 9px;font-size:12px;line-height:1.45;color:var(--on-gold);cursor:pointer;text-align:left}
+.nq-item svg{width:14px;height:14px;color:var(--gold-deep);flex-shrink:0;margin-top:1px}
+.nq-item span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nq-item.open span{white-space:normal;overflow-wrap:anywhere}
+.nq-del{border:none;background:none;color:var(--gold-deep);cursor:pointer;font-size:14px;line-height:1;padding:0 2px;flex-shrink:0}
+.nq-del:hover{color:var(--error)}
+.note-ask{display:flex;gap:6px;padding:6px 13px 8px;align-items:center}
+.note-ask input{flex:1;font-family:inherit;font-size:12px;padding:8px 11px;border:1px solid var(--hairline);border-radius:var(--r-md);background:var(--surface-card);color:var(--ink);outline:none;transition:.15s}
+.note-ask input:focus{background:var(--canvas);border-color:var(--stone)}
+.note-ask input::placeholder{color:var(--ash)}
+.note-ask button{width:32px;height:32px;flex-shrink:0;border:none;background:var(--primary);color:#fff;border-radius:var(--r-md);cursor:pointer;display:flex;align-items:center;justify-content:center}
+.note-ask button:hover{background:var(--primary-pressed)}
+.note-ask button svg{width:15px;height:15px}
+.note-time{font-size:10.5px;color:var(--ash);padding:0 13px 10px;text-align:left}
+/* Highlight đoạn đã lưu ghi chú trong văn bản */
+mark.hl-note{background:rgba(255,205,0,.35);border-radius:2px;padding:0 1px;color:inherit}
+.note-empty{text-align:center;color:var(--ash);padding:30px 20px}
+.note-empty svg{width:34px;height:34px;color:var(--stone);margin-bottom:10px}
+.note-empty p{font-size:12.5px;line-height:1.6}
+.note-empty b{color:var(--mute)}

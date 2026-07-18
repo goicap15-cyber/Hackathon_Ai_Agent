@@ -25,6 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initUploadEvents();
     initSpeechRecognition();
     buildTrongDong();
+    renderNotes();
     
     // Initial UI bindings
     moveUnderline();
@@ -1397,7 +1398,7 @@ document.addEventListener('keydown', e => {
 // ---------------- PANEL TABS SWITCHER ----------------
 function showTab(t) {
     document.querySelectorAll('.tab').forEach(el => el.classList.toggle('on', el.dataset.tab === t));
-    ['sum', 'term', 'q', 'qa'].forEach(p => {
+    ['sum', 'term', 'q', 'qa', 'note'].forEach(p => {
       const el = document.getElementById('pane-' + p);
       if (el) {
           const active = p === t;
@@ -1409,7 +1410,7 @@ function showTab(t) {
     document.getElementById('inbar').style.display = (t === 'qa') ? 'flex' : 'none';
     moveUnderline();
     
-    const paneMap = { sum: '#summaryBody .sec', term: '#termList .term-item', q: '#pane-q .q', qa: '#thread > *' };
+    const paneMap = { sum: '#summaryBody .sec', term: '#termList .term-item', q: '#pane-q .q', qa: '#thread > *', note: '#noteList .note-card' };
     if (!reduce) animateStagger(paneMap[t]);
 }
 
@@ -1652,6 +1653,167 @@ function buildTrongDong() {
     svg.appendChild(el('path', { d: sd, fill: 'none', stroke, 'stroke-width': 1 }));
 }
 
+/* ---------- Ghi chú (bôi đen văn bản → lưu) ---------- */
+const notes = [];
+let pendingSel = null; // {text, src, docId, docTitle}
+
+function findArticle(node) {
+    let el = node.nodeType === 3 ? node.parentElement : node;
+    el = el.closest('.doc-content-body p, .doc-content-body h2, .doc-content-body h3');
+    if (!el) return 'Tài liệu';
+    let h = el;
+    while (h && !(h.tagName === 'H2' || h.tagName === 'H3')) h = h.previousElementSibling;
+    return h ? h.textContent.trim() : 'Tài liệu';
+}
+
+function onDocSelect() {
+    const btn = document.getElementById('saveNoteBtn');
+    if (!btn) return;
+    const sel = window.getSelection();
+    const txt = sel && sel.toString().trim();
+    const docEl = document.getElementById('doc-content-body');
+    if (txt && txt.length >= 2 && sel.rangeCount && docEl && docEl.contains(sel.anchorNode) && docEl.contains(sel.focusNode)) {
+        const rect = sel.getRangeAt(0).getBoundingClientRect();
+        let docTitle = 'Tài liệu';
+        let docId = '';
+        allMeetings.forEach(m => {
+            m.docs.forEach(d => {
+                if (d.on) {
+                    docTitle = d.t;
+                    docId = d.t;
+                }
+            });
+        });
+        pendingSel = { text: txt, src: findArticle(sel.anchorNode), docTitle, docId };
+        btn.classList.add('show');
+        
+        // Offset scroll calculation
+        let x = rect.left + rect.width / 2 - btn.offsetWidth / 2;
+        let y = rect.top - btn.offsetHeight - 8 + window.scrollY;
+        
+        x = Math.max(8, Math.min(x, window.innerWidth - btn.offsetWidth - 8));
+        if (y < 8) y = rect.bottom + 8 + window.scrollY;
+        
+        btn.style.left = x + 'px';
+        btn.style.top = y + 'px';
+    } else {
+        btn.classList.remove('show');
+        pendingSel = null;
+    }
+}
+
+document.addEventListener('mouseup', () => setTimeout(onDocSelect, 0));
+document.addEventListener('scroll', () => {
+    const btn = document.getElementById('saveNoteBtn');
+    if (btn) btn.classList.remove('show');
+}, true);
+
+let noteSeq = 0;
+function saveSelection() {
+    if (!pendingSel) return;
+    const sel = window.getSelection();
+    const id = 'hl-' + (++noteSeq);
+    if (sel.rangeCount) {
+        const range = sel.getRangeAt(0);
+        const mark = document.createElement('mark');
+        mark.className = 'hl-note';
+        mark.id = id;
+        try {
+            range.surroundContents(mark);
+        } catch (e) {
+            mark.appendChild(range.extractContents());
+            range.insertNode(mark);
+        }
+    }
+    
+    notes.unshift({
+        text: pendingSel.text,
+        src: pendingSel.src,
+        docId: pendingSel.docId,
+        doc: pendingSel.docTitle,
+        time: 'Vừa lưu',
+        refId: id,
+        qs: [],
+        open: true
+    });
+    
+    const btn = document.getElementById('saveNoteBtn');
+    if (btn) btn.classList.remove('show');
+    window.getSelection().removeAllRanges();
+    pendingSel = null;
+    
+    renderNotes();
+    showTab('note');
+}
+
+function gotoNote(refId) {
+    const el = document.getElementById(refId);
+    if (!el) return;
+    const scroller = document.getElementById('docpane');
+    if (!scroller) return;
+    
+    const rel = el.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
+    const target = scroller.scrollTop + rel - scroller.clientHeight / 2 + el.offsetHeight / 2;
+    scroller.scrollTo({ top: Math.max(0, target), behavior: reduce ? 'auto' : 'smooth' });
+    
+    if (reduce) return;
+    gsap.fromTo(el, { backgroundColor: 'rgba(218, 37, 29, 0.55)' }, { backgroundColor: 'rgba(255, 205, 0, 0.35)', duration: 1.4, ease: 'power2.out' });
+}
+
+function renderNotes() {
+    const list = document.getElementById('noteList');
+    const empty = document.getElementById('noteEmpty');
+    if (!list || !empty) return;
+    
+    document.getElementById('noteCount').textContent = notes.length;
+    empty.style.display = notes.length ? 'none' : 'block';
+    
+    list.innerHTML = notes.map((n, k) => `
+    <div class="note-card ${n.open ? 'open' : ''}" data-k="${k}">
+      <div class="note-src">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:13px;height:13px;color:var(--primary);flex-shrink:0;"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5"/></svg>
+        <span>${n.doc} · <b>${n.src}</b></span>
+        <button class="note-del" onclick="delNote(${k})" title="Xoá ghi chú">×</button>
+      </div>
+      <div class="note-body" onclick="gotoNote('${n.refId}')" title="Xem đoạn trong tài liệu">${n.text.replace(/</g, '&lt;')}</div>
+      <button class="note-toggle" onclick="toggleNote(${k})"><span>${n.open ? 'Thu gọn' : 'Mở rộng'}</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;transition:transform .2s;"><path d="M6 9l6 6 6-6"/></svg></button>
+      ${n.qs.length ? `<div class="note-qlist">${n.qs.map((q, qi) => `<div class="nq-item" onclick="this.classList.toggle('open')" title="Nhấn để mở rộng/thu gọn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:14px;height:14px;color:var(--gold-deep);flex-shrink:0;margin-top:1px;"><path d="M9.1 9a3 3 0 1 1 4 2.8c-.9.4-1.6 1.2-1.6 2.2M12 17h.01"/></svg><span>${q.replace(/</g, '&lt;')}</span><button class="nq-del" onclick="event.stopPropagation();delNoteQ(${k},${qi})" title="Xoá">×</button></div>`).join('')}</div>` : ''}
+      <div class="note-ask">
+        <input placeholder="Thêm câu hỏi để nêu trong họp…" onkeydown="if(event.key==='Enter')addNoteQ(${k},this)">
+        <button onclick="addNoteQ(${k},this.previousElementSibling)" title="Lưu câu hỏi">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" style="width:15px;height:15px;"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+      </div>
+      <div class="note-time">${n.time}</div>
+    </div>`).join('');
+    
+    if (!reduce && notes.length) {
+        gsap.from('#noteList .note-card:first-child', { y: -8, autoAlpha: 0, duration: 0.35, ease: 'back.out(1.4)' });
+    }
+}
+
+function delNote(k) {
+    notes.splice(k, 1);
+    renderNotes();
+}
+
+function toggleNote(k) {
+    notes[k].open = !notes[k].open;
+    renderNotes();
+}
+
+function addNoteQ(k, input) {
+    const q = input.value.trim();
+    if (!q) return;
+    notes[k].qs.push(q);
+    renderNotes();
+}
+
+function delNoteQ(k, qi) {
+    notes[k].qs.splice(qi, 1);
+    renderNotes();
+}
+
 /* ---------- Đăng nhập / Đăng xuất ---------- */
 function initLoginAnimation() {
     if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
@@ -1812,3 +1974,9 @@ window.togglePass = togglePass;
 window.doLogin = doLogin;
 window.doLogout = doLogout;
 window.editMeetingDate = editMeetingDate;
+window.saveSelection = saveSelection;
+window.gotoNote = gotoNote;
+window.delNote = delNote;
+window.toggleNote = toggleNote;
+window.addNoteQ = addNoteQ;
+window.delNoteQ = delNoteQ;
