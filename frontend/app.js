@@ -1270,6 +1270,9 @@ function confirmNewFolder() {
     saveMeetingsToLocal();
     initMeetingsState();
     
+    // Add dynamic notification for the new folder/meeting
+    addNotification(`Kỳ họp mới “${name}” đã được thiết lập thành công.`);
+    
     selFolder = meetings.length - 1; // set as active folder
     cancelNewFolder();
     renderFolderGrid();
@@ -1364,6 +1367,9 @@ async function confirmUpload() {
         }
         src.open = true;
         saveMeetingsToLocal();
+        
+        // Add dynamic notification for the new upload
+        addNotification(`Tài liệu “${file.name}” đã được tải lên và phân tích xong bằng AI.`);
         
         // Trigger selection and render
         selectDocumentFromLibrary(file.name);
@@ -1470,13 +1476,34 @@ function scrollTophysPage(pageNum) {
 
 // ---------------- NOTIFICATIONS ACTIONS ----------------
 const MOCK_NOTIFS = [
-  { t: 'Đã cập nhật hệ thống: sẵn sàng nạp tài liệu Word, PDF.', time: 'Hôm nay · 09:12' },
-  { t: 'Tài liệu “Dự thảo Nghị quyết phân bổ ngân sách 2026” đã được xử lý xong.', time: 'Hôm qua · 16:40' },
+  { t: 'Đã cập nhật hệ thống: sẵn sàng nạp tài liệu Word, PDF.', time: 'Hôm nay · 09:12', read: false },
+  { t: 'Tài liệu “Dự thảo Nghị quyết phân bổ ngân sách 2026” đã được xử lý xong.', time: 'Hôm qua · 16:40', read: false },
   { t: 'Kỳ họp thứ 12 sẽ diễn ra sau 1 ngày.', time: '2 ngày trước', read: true }
 ];
 
+function updateNotifBadge() {
+    const badge = document.getElementById('notifBadge');
+    if (!badge) return;
+    const unreadCount = MOCK_NOTIFS.filter(n => !n.read).length;
+    if (unreadCount > 0) {
+        badge.textContent = unreadCount;
+        badge.classList.remove('hide');
+    } else {
+        badge.classList.add('hide');
+    }
+}
+
+function addNotification(text) {
+    const now = new Date();
+    const timeStr = `Hôm nay · ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+    MOCK_NOTIFS.unshift({ t: text, time: timeStr, read: false });
+    renderNotif();
+    updateNotifBadge();
+}
+
 function renderNotif() {
     const p = document.getElementById('notifPanel');
+    if (!p) return;
     p.innerHTML = `<div class="np-head">Thông báo</div>` + MOCK_NOTIFS.map(n => `
       <div class="np-item ${n.read ? 'read' : ''}"><span class="np-dot"></span>
         <div><div class="np-t">${n.t}</div><div class="np-time">${n.time}</div></div>
@@ -1485,11 +1512,12 @@ function renderNotif() {
 
 function toggleNotif() {
     const p = document.getElementById('notifPanel');
+    if (!p) return;
     const show = !p.classList.contains('show');
     p.classList.toggle('show', show);
     if (show) {
-      document.getElementById('notifBadge').classList.add('hide');
       MOCK_NOTIFS.forEach(n => n.read = true);
+      updateNotifBadge();
       renderNotif();
       if (!reduce) gsap.from('.notif-panel .np-item', { y: 6, autoAlpha: 0, stagger: 0.05, duration: 0.3 });
     }
@@ -1662,6 +1690,7 @@ function toggleVoiceInput() {
 // ---------------- GSAP INTRO ANIMATION ----------------
 function animateIntro() {
     renderNotif();
+    updateNotifBadge();
     
     gsap.registerPlugin(ScrollTrigger);
     gsap.defaults({ duration: 0.5, ease: 'power2.out' });
@@ -2242,6 +2271,9 @@ function saveScheduler(ev) {
     updateSidebarCountdown();
     renderMeetings();
     renderFolderGrid();
+    
+    // Add dynamic notification for the updated schedule
+    addNotification(`Đã cập nhật lịch họp kỳ họp “${name}” lúc ${timeVal || '08:00'} ngày ${displayDate}.`);
     
     closeScheduler();
 }
