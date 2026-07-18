@@ -940,8 +940,10 @@ function toggleMeet(i) {
 }
 
 // Select document from sidebar accordion
-async function selectDoc(mi, di) {
-    event.stopPropagation(); // prevent collapsing accordion
+async function selectDoc(mi, di, ev) {
+    if (ev) ev.stopPropagation();
+    else if (window.event) window.event.stopPropagation();
+    activeThreadId = null; // Start fresh chat session
     const name = allMeetings[mi].docs[di].t;
     
     // Highlight UI immediately
@@ -1833,19 +1835,24 @@ function delNoteQ(k, qi) {
 
 /* ---------- Lịch sử trò chuyện ---------- */
 let storedChats = JSON.parse(localStorage.getItem('gov_stored_chats') || '[]');
+let activeThreadId = null;
 
-function toggleChatHistory() {
-    const panel = document.getElementById('chatHistoryPanel');
-    if (!panel) return;
-    const isShown = panel.style.display === 'block';
-    panel.style.display = isShown ? 'none' : 'block';
-    if (!isShown) {
+function openChatHistoryModal() {
+    const modal = document.getElementById('chatHistoryModal');
+    if (modal) {
+        modal.classList.add('show');
         renderStoredChats();
     }
 }
 
+function closeChatHistoryModal() {
+    const modal = document.getElementById('chatHistoryModal');
+    if (modal) modal.classList.remove('show');
+}
+
 function clearChatHistory() {
     storedChats = [];
+    activeThreadId = null;
     localStorage.removeItem('gov_stored_chats');
     renderStoredChats();
 }
@@ -1854,82 +1861,85 @@ function renderStoredChats() {
     const list = document.getElementById('chatHistoryList');
     if (!list) return;
     if (storedChats.length === 0) {
-        list.innerHTML = `<div style="text-align: center; color: var(--ash); padding: 20px 10px; font-size: 12.5px;">Chưa có lịch sử trò chuyện nào.</div>`;
+        list.innerHTML = `<div style="text-align: center; color: var(--ash); padding: 30px 20px; font-size: 13px;">Chưa có lịch sử cuộc trò chuyện nào.</div>`;
         return;
     }
-    list.innerHTML = storedChats.map((c, idx) => `
-        <div class="history-item" style="border: 1px solid var(--hairline); border-radius: var(--r-sm); padding: 8px 10px; background: var(--canvas); font-size: 12px; cursor: pointer; transition: all 0.15s ease;" onclick="loadHistoryToChat(${idx})">
-          <div style="font-size: 10.5px; color: var(--mute); display: flex; justify-content: space-between; margin-bottom: 4px;">
-            <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px;">📂 ${c.docName}</span>
-            <span style="flex-shrink:0;">${c.timestamp}</span>
+    list.innerHTML = storedChats.map((c, idx) => {
+        const lastUser = c.messages.filter(m => m.role === 'user').pop()?.message || 'Câu hỏi trống';
+        const lastAi = c.messages.filter(m => m.role === 'ai').pop()?.message || 'Chưa có trả lời';
+        const msgCount = c.messages.length / 2;
+        
+        return `
+        <div class="history-item" style="border: 1px solid var(--hairline); border-radius: var(--r-md); padding: 12px 14px; background: var(--surface-card); font-size: 13px; cursor: pointer; transition: all 0.15s ease;" onclick="loadHistoryToChat(${idx})">
+          <div style="font-size: 11px; color: var(--mute); display: flex; justify-content: space-between; margin-bottom: 6px; align-items: center;">
+            <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 280px; font-weight:600;">📂 ${c.docName}</span>
+            <span style="flex-shrink:0; background: var(--secondary-bg); padding: 2px 6px; border-radius: var(--r-sm);">${msgCount} lượt hỏi</span>
           </div>
-          <div style="font-weight: 600; color: var(--ink); margin-bottom: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">❓ ${c.question}</div>
-          <div style="color: var(--body); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.4;">🤖 ${c.answer.replace(/<[^>]*>/g, '')}</div>
-        </div>
-    `).join('');
+          <div style="font-weight: 700; color: var(--ink); margin-bottom: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">❓ ${lastUser}</div>
+          <div style="color: var(--body); font-size: 12px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.45;">🤖 ${lastAi.replace(/<[^>]*>/g, '')}</div>
+          <div style="font-size: 10px; color: var(--ash); text-align: right; margin-top: 6px;">Cập nhật lúc: ${c.lastUpdated}</div>
+        </div>`;
+    }).join('');
 }
 
 function loadHistoryToChat(idx) {
-    const c = storedChats[idx];
-    if (!c) return;
+    const session = storedChats[idx];
+    if (!session) return;
     
-    // 1. Find document by name
-    let foundDoc = null;
-    let foundMeet = null;
-    allMeetings.forEach(m => {
-        m.docs.forEach(d => {
-            if (d.t === c.docName) {
-                foundDoc = d;
-                foundMeet = m;
+    // 1. Find and select the corresponding document by meeting and document indices
+    let foundMeetIdx = -1;
+    let foundDocIdx = -1;
+    allMeetings.forEach((m, mi) => {
+        m.docs.forEach((d, di) => {
+            if (d.t === session.docName) {
+                foundMeetIdx = mi;
+                foundDocIdx = di;
             }
         });
     });
     
-    if (foundDoc && foundMeet) {
-        toggleMeet(foundMeet.id);
-        selectDoc(foundDoc.t);
+    if (foundMeetIdx !== -1 && foundDocIdx !== -1) {
+        const meet = allMeetings[foundMeetIdx];
+        if (!meet.open) {
+            meet.open = true;
+        }
+        selectDoc(foundMeetIdx, foundDocIdx);
     }
     
-    // 2. Put this Q&A into active chat history thread panel
+    // Set activeThreadId after selectDoc since selectDoc resets it to null
+    activeThreadId = session.id;
+    
+    // 2. Load the message history inside the Q&A panel
     setTimeout(() => {
         const thread = document.getElementById('thread');
         if (thread) {
             thread.innerHTML = '';
-            appendChatBubble('user', c.question);
+            chatHistory = [];
             
-            let finalHTML = c.answer;
-            if (typeof marked !== 'undefined') {
-                try {
-                    finalHTML = marked.parse(c.answer);
-                } catch(e) {}
-            }
-            finalHTML = finalHTML.replace(/\[(?:Trang\s+)?(\d+)\]/gi, (match, pageNum) => {
-                return `<span class="chip" onclick="scrollTophysPage(${pageNum})">📍 Trang ${pageNum}</span>`;
+            session.messages.forEach(msg => {
+                if (msg.role === 'user') {
+                    appendChatBubble('user', msg.message);
+                    chatHistory.push({ role: 'user', message: msg.message });
+                } else {
+                    let finalHTML = msg.message;
+                    if (typeof marked !== 'undefined') {
+                        try {
+                            finalHTML = marked.parse(msg.message);
+                        } catch(e) {}
+                    }
+                    finalHTML = finalHTML.replace(/\[(?:Trang\s+)?(\d+)\]/gi, (match, pageNum) => {
+                        return `<span class="chip" onclick="scrollTophysPage(${pageNum})">📍 Trang ${pageNum}</span>`;
+                    });
+                    appendChatBubble('ai', finalHTML);
+                    chatHistory.push({ role: 'ai', message: msg.message });
+                }
             });
-            appendChatBubble('ai', finalHTML);
-            
-            // Sync session chatHistory
-            chatHistory = [
-                { role: 'user', message: c.question },
-                { role: 'ai', message: c.answer }
-            ];
         }
         showTab('qa');
     }, 500);
     
-    // Close panel
-    const panel = document.getElementById('chatHistoryPanel');
-    if (panel) panel.style.display = 'none';
+    closeChatHistoryModal();
 }
-
-// Click outside handler
-document.addEventListener('click', (e) => {
-    const wrap = document.querySelector('.chat-history-wrap');
-    const panel = document.getElementById('chatHistoryPanel');
-    if (panel && wrap && !wrap.contains(e.target)) {
-        panel.style.display = 'none';
-    }
-});
 
 /* ---------- Đăng nhập / Đăng xuất ---------- */
 function initLoginAnimation() {
@@ -2097,6 +2107,7 @@ window.delNote = delNote;
 window.toggleNote = toggleNote;
 window.addNoteQ = addNoteQ;
 window.delNoteQ = delNoteQ;
-window.toggleChatHistory = toggleChatHistory;
+window.openChatHistoryModal = openChatHistoryModal;
+window.closeChatHistoryModal = closeChatHistoryModal;
 window.clearChatHistory = clearChatHistory;
 window.loadHistoryToChat = loadHistoryToChat;
