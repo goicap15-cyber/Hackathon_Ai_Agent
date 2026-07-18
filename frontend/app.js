@@ -176,6 +176,9 @@ function loadDocumentData(doc) {
     const titleText = doc.filename.replace(/\.[^/.]+$/, ""); // strip extension
     document.getElementById('doc-title-header').innerHTML = `<span class="badge">DỰ THẢO</span>${titleText}`;
     
+    // Ensure doc.pages exists
+    doc.pages = doc.pages || [];
+    
     const pageCountVal = document.getElementById('page-count-val');
     pageCountVal.setAttribute('data-count', doc.pages.length);
     pageCountVal.textContent = doc.pages.length;
@@ -717,54 +720,56 @@ async function sendQ() {
     
     // Request server
     try {
-        const response = await fetch('/api/chat', {
+        const response = await fetch('/api/document/chat_stream', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 message: text,
-                history: chatHistory.map(m => ({ role: m.role, message: m.message })),
-                customer_id: null,
-                role: 'admin'
+                history: chatHistory.map(m => ({ role: m.role, message: m.message }))
             })
         });
         
-        const result = await response.json();
-        
-        // Remove typing
-        const typingEl = document.getElementById(typingId);
-        if (typingEl) typingEl.remove();
-        
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder("utf-8");
         let answerText = "";
-        let citations = [];
-
-        if (typeof result === 'string') {
-            answerText = result;
-        } else if (result.answer) {
-            answerText = result.answer;
-            citations = result.citations || [];
-        } else if (result.content) {
-            answerText = result.content;
-            citations = result.citations || [];
-        } else {
-            answerText = JSON.stringify(result);
+        let firstChunkReceived = false;
+        let aiBubbleEl = null;
+        
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            
+            if (!firstChunkReceived) {
+                firstChunkReceived = true;
+                const typingEl = document.getElementById(typingId);
+                if (typingEl) typingEl.remove();
+                
+                const aiBubbleId = appendChatBubble('ai', '');
+                aiBubbleEl = document.getElementById(aiBubbleId).querySelector('.ans-content');
+            }
+            
+            answerText += decoder.decode(value, { stream: true });
+            
+            // Format answer Markdown
+            let finalHTML = answerText;
+            if (typeof marked !== 'undefined') {
+                finalHTML = marked.parse(answerText);
+            } else {
+                finalHTML = finalHTML.replace(/\n/g, '<br>');
+                finalHTML = finalHTML.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            }
+            
+            // Parse page citation format like [Trang X] into clickable links
+            finalHTML = finalHTML.replace(/\[(?:Trang\s+)?(\d+)\]/gi, (match, pageNum) => {
+                return `<span class="chip" onclick="scrollTophysPage(${pageNum})">📍 Trang ${pageNum}</span>`;
+            });
+            
+            aiBubbleEl.innerHTML = finalHTML;
+            
+            // Auto scroll
+            const chatLog = document.getElementById('chatLog');
+            if (chatLog) chatLog.scrollTop = chatLog.scrollHeight;
         }
-        
-        // Format answer Markdown using marked.js if available
-        let finalHTML = answerText;
-        if (typeof marked !== 'undefined') {
-            finalHTML = marked.parse(answerText);
-        } else {
-            finalHTML = finalHTML.replace(/\n/g, '<br>');
-            finalHTML = finalHTML.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-        }
-        
-        // Parse page citation format like [Trang X] into clickable links
-        finalHTML = finalHTML.replace(/\[(?:Trang\s+)?(\d+)\]/gi, (match, pageNum) => {
-            return `<span class="chip" onclick="scrollTophysPage(${pageNum})">📍 Trang ${pageNum}</span>`;
-        });
-        
-        // Add AI response bubble
-        appendChatBubble('ai', finalHTML);
         
         // Push to history
         chatHistory.push({ role: 'user', message: text });
@@ -803,7 +808,7 @@ function appendChatBubble(role, htmlContent) {
         bubble.className = 'ans';
         bubble.innerHTML = `
           <div class="ans-body">
-            ${htmlContent}
+            <div class="ans-content">${htmlContent}</div>
             <div class="verify"><svg class="i vchk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>Đã đối chiếu với văn bản gốc</div>
           </div>
         `;

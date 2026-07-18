@@ -1,8 +1,8 @@
 # agent_backend/main.py
-from fastapi import FastAPI, HTTPException, status, UploadFile, File, Request
+from fastapi import FastAPI, HTTPException, status, UploadFile, File, Request, Form, BackgroundTasks
+from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Any, Optional
 import os
@@ -95,24 +95,16 @@ def _parse_response(response: httpx. Response) -> Any:
 @app.post("/api/chat")
 async def chat_endpoint(request: ChatRequest):
     """
-    True AI Agent endpoint.
-    LLM tự quyết định gọi tool nào để tìm data — không có heuristic code.
+    Override old CRM endpoint to use new Paperless Meetings API
+    to bypass browser cache issues for app.js. Now uses streaming.
     """
-    result = await run_agent(
-        user_message=request.message,
-        prev_customer_id=request.customer_id or "",
-        rm_name=request.rm_name,
-        history=request.history,
-        role=request.role,
-    )
+    from agent_backend.meeting_service import answer_document_question_stream
+    
+    async def event_generator():
+        async for chunk in answer_document_question_stream(request.message, request.history):
+            yield chunk
 
-    log_audit(
-        actor_id=request.rm_name,
-        action="Agent Chat",
-        details=f"Query: '{request.message}' | Ctx: {request.customer_id}",
-    )
-
-    return result
+    return StreamingResponse(event_generator(), media_type="text/plain")
 
 
 class MeetingChatRequest(BaseModel):
@@ -190,6 +182,10 @@ def select_document(request: SelectDocRequest):
     try:
         with open(target_path, "r", encoding="utf-8") as f:
             doc_data = json.load(f)
+        
+        from agent_backend.meeting_service import ensure_pages_extracted
+        doc_data = ensure_pages_extracted(doc_data)
+        
         # Save as active document
         save_current_document(doc_data)
         return {"status": "success", "data": doc_data}
@@ -205,6 +201,22 @@ def delete_document(request: DeleteDocRequest):
     safe_filename = re.sub(r'[^a-zA-Z0-9._-]', '_', request.filename)
     target_path = os.path.join(docs_dir, f"{safe_filename}.json")
     
+    # Try deleting from Gemini first to save storage
+    try:
+        if os.path.exists(target_path):
+            with open(target_path, "r", encoding="utf-8") as f:
+                doc_to_delete = json.load(f)
+            if "file_name_gemini" in doc_to_delete:
+                from google import genai
+                client = genai.Client()
+                try:
+                    client.files.delete(name=doc_to_delete["file_name_gemini"])
+                    logger.info(f"Deleted file {doc_to_delete['file_name_gemini']} from Gemini servers.")
+                except Exception as gemini_e:
+                    logger.error(f"Failed to delete file from Gemini: {gemini_e}")
+    except Exception as e:
+        logger.error(f"Error reading file to delete from Gemini: {e}")
+
     # Check if this is the active document, if so, delete it from store
     current_doc_path = os.path.join(data_dir, "document_store.json")
     if os.path.exists(current_doc_path):
@@ -216,9 +228,13 @@ def delete_document(request: DeleteDocRequest):
         except Exception:
             pass
 
+    target_pdf_path = os.path.join(docs_dir, f"{safe_filename}.pdf")
+    
     if os.path.exists(target_path):
         try:
             os.remove(target_path)
+            if os.path.exists(target_pdf_path):
+                os.remove(target_pdf_path)
             return {"status": "success", "message": "Đã xoá tài liệu thành công"}
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Không thể xoá tài liệu: {str(e)}")
@@ -259,6 +275,16 @@ def get_current_doc_endpoint():
         return {"status": "empty", "message": "Không có tài liệu nào"}
     return {"status": "success", "data": doc}
 
+
+@app.post("/api/document/chat_stream")
+async def document_chat_stream_endpoint(request: MeetingChatRequest):
+    from agent_backend.meeting_service import answer_document_question_stream
+    
+    async def event_generator():
+        async for chunk in answer_document_question_stream(request.message, request.history):
+            yield chunk
+
+    return StreamingResponse(event_generator(), media_type="text/plain")
 
 @app.post("/api/document/chat")
 async def document_chat_endpoint(request: MeetingChatRequest):
