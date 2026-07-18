@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Lora:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=4.0">
+<link rel="stylesheet" href="style.css?v=4.1">
 <!-- Markdown Parser -->
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
@@ -109,22 +109,22 @@
 
   <!-- Main -->
   <div class="main">
-    <div class="topbar">
-      <div class="topbar-left">
+    <div class="topbar" style="border-radius: 9999px; padding: 6px 20px; background: #ffffff; border: 1px solid #e7e3d8; box-shadow: 0 4px 10px rgba(0,0,0,0.03); display: flex; align-items: center; justify-content: space-between;">
+      <div class="topbar-left" style="display: flex; align-items: center; gap: 14px; flex: 1;">
         <div class="notif-wrap">
-          <button class="notif-btn" onclick="toggleNotif()" title="Thông báo">
-            <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+          <button class="notif-btn" onclick="toggleNotif()" title="Thông báo" style="width: 38px; height: 38px; border-radius: 50%; border: 1px solid #e7e3d8; background: #fbf8f1; color: #5b5f66; display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative;">
+            <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width: 17px; height: 17px; color: #5b5f66;"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/></svg>
             <span class="notif-badge" id="notifBadge">2</span>
           </button>
           <div class="notif-panel" id="notifPanel"></div>
         </div>
-        <div class="topsearch">
-          <svg class="i ts-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
-          <input id="globalSearch" placeholder="Tìm tài liệu trong các kỳ họp…" oninput="globalSearch(this.value)" onfocus="globalSearch(this.value)" autocomplete="off">
+        <div class="topsearch" style="position: relative; flex: 1; display: flex; align-items: center; background: #faf8f5; border: 1px solid #e7e3d8; border-radius: 9999px; padding: 0 16px; height: 40px;">
+          <svg class="i ts-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width: 16px; height: 16px; color: #8c9096; margin-right: 6px;"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+          <input id="globalSearch" placeholder="Tìm tài liệu trong các kỳ họp…" oninput="globalSearch(this.value)" onfocus="globalSearch(this.value)" autocomplete="off" style="border: none; background: transparent; outline: none; font-family: inherit; font-size: 13px; color: #2e3138; width: 100%;">
           <div class="ts-results" id="tsResults"></div>
         </div>
       </div>
-      <span class="welcome" style="margin-left: auto;">Chào mừng đồng chí <b id="welcomeName">—</b></span>
+      <span class="welcome" style="margin-left: 20px; font-size: 13px; color: #5b5f66; white-space: nowrap;">Chào mừng đồng chí <b id="welcomeName" style="color: #da251d; font-weight: 700;">—</b></span>
     </div>
 
     <!-- Layout state when no document is napped -->
@@ -358,6 +358,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
-<script src="app.js?v=4.0"></script>
+<script src="app.js?v=4.1"></script>
 </body>
 </html>
