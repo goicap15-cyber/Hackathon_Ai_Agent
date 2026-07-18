@@ -1543,15 +1543,50 @@ function toggleNotif() {
     }
 }
 
+function renderAcctPanel() {
+    const p = document.getElementById('acctPanel');
+    if (!p) return;
+    const currentUser = localStorage.getItem('gov_user') || 'Đại biểu';
+    const currentDept = localStorage.getItem('gov_dept') || 'Đoàn Đại biểu';
+    p.innerHTML = `
+      <div class="acct-head" style="display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid #efe8d8;">
+        <div class="acct-avt" style="width: 38px; height: 38px; border-radius: 50%; background: var(--primary-pale); color: var(--primary); display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: 700;">
+          ${currentUser.split(' ').pop().charAt(0)}
+        </div>
+        <div>
+          <div class="acct-name" style="font-size: 13.5px; font-weight: 700; color: var(--ink); line-height: 1.2;">${currentUser}</div>
+          <div class="acct-dept" style="font-size: 11.5px; color: var(--mute); margin-top: 2px;">${currentDept}</div>
+        </div>
+      </div>
+      <button class="acct-logout" onclick="doLogout()" style="display: flex; align-items: center; justify-content: center; gap: 8px; width: calc(100% - 16px); margin: 8px; padding: 9px; border: 1px solid #efe8d8; background: #faf8f5; color: var(--body); font-family: inherit; font-size: 12.5px; font-weight: 700; border-radius: var(--r-md); cursor: pointer; transition: 0.15s;">
+        <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width: 15px; height: 15px;"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+        Đăng xuất
+      </button>
+    `;
+}
+
+function toggleAcct() {
+    const p = document.getElementById('acctPanel');
+    if (!p) return;
+    const show = !p.classList.contains('show');
+    p.classList.toggle('show', show);
+    if (show) {
+      renderAcctPanel();
+      if (!reduce) gsap.from('.acct-panel > *', { y: 4, autoAlpha: 0, duration: 0.25 });
+    }
+}
+
 // Close panels when clicking outside
 document.addEventListener('click', e => {
     if (!e.target.closest('.topsearch')) {
         const res = document.getElementById('tsResults');
         if (res) res.classList.remove('show');
     }
-    if (!e.target.closest('.notif-btn') && !e.target.closest('.notif-panel')) {
+    if (!e.target.closest('.notif-btn') && !e.target.closest('.notif-panel') && !e.target.closest('.acct-wrap')) {
         const notif = document.getElementById('notifPanel');
         if (notif) notif.classList.remove('show');
+        const acct = document.getElementById('acctPanel');
+        if (acct) acct.classList.remove('show');
     }
     if (e.target.id === 'uploadModal') closeUpload();
     if (e.target.id === 'confirmModal') closeConfirm();
@@ -2342,4 +2377,5 @@ window.delNote = delNote;
 window.toggleNote = toggleNote;
 window.addNoteQ = addNoteQ;
 window.delNoteQ = delNoteQ;
+window.toggleAcct = toggleAcct;
 
