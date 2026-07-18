@@ -611,7 +611,8 @@ function filterTerms(query) {
 }
 
 function applyFilter() {
-    const v = document.getElementById('fieldFilter').value;
+    const el = document.getElementById('fieldFilter');
+    const v = el ? el.value : 'all';
     const list = window.currentTerminology || [];
     
     if (v === 'all') {
