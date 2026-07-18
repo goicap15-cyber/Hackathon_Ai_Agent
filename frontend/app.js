@@ -246,41 +246,57 @@ function updateSidebarCountdown(filename) {
     // Dynamic countdown based on doc or folder
     const daysEl = document.getElementById('countdown-days');
     let isPast = false;
-    let meetingTitle = 'Kỳ họp thứ 12 · HĐND tỉnh';
+    let meetingTitle = 'Chưa chọn kỳ họp';
     let rDate = '—';
     let mDate = 'Chưa có lịch';
     let daysRemaining = '—';
     
+    // 1. Find active meeting based on active doc
+    let activeM = null;
     allMeetings.forEach(m => {
         m.docs.forEach(d => {
             if (d.on) {
-                isPast = m.past;
-                meetingTitle = m.name;
-                const dPart = m.date.split('/');
-                if (dPart.length === 3) {
-                    const day = parseInt(dPart[0]);
-                    const rDay = day > 1 ? day - 1 : day;
-                    rDate = `${rDay.toString().padStart(2, '0')}/${dPart[1]}`;
-                    mDate = `${dPart[0]}/${dPart[1]} · 08:00`;
-                    
-                    // Dynamic countdown calculation
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-                    const meetD = new Date(parseInt(dPart[2]), parseInt(dPart[1]) - 1, parseInt(dPart[0]));
-                    meetD.setHours(0, 0, 0, 0);
-                    
-                    const diffTime = meetD.getTime() - today.getTime();
-                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                    if (diffDays <= 0) {
-                        daysRemaining = 0;
-                        isPast = true;
-                    } else {
-                        daysRemaining = diffDays;
-                    }
-                }
+                activeM = m;
             }
         });
     });
+    
+    // 2. If no active doc, fallback to selFolder
+    if (!activeM && selFolder !== null && allMeetings[selFolder]) {
+        activeM = allMeetings[selFolder];
+    }
+    
+    // 3. Fallback to first meeting if nothing selected yet
+    if (!activeM && allMeetings.length > 0) {
+        activeM = allMeetings[0];
+    }
+    
+    if (activeM) {
+        isPast = activeM.past;
+        meetingTitle = activeM.name;
+        const dPart = activeM.date.split('/');
+        if (dPart.length === 3) {
+            const day = parseInt(dPart[0]);
+            const rDay = day > 1 ? day - 1 : day;
+            rDate = `${rDay.toString().padStart(2, '0')}/${dPart[1]}`;
+            mDate = `${dPart[0]}/${dPart[1]} · 08:00`;
+            
+            // Dynamic countdown calculation
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const meetD = new Date(parseInt(dPart[2]), parseInt(dPart[1]) - 1, parseInt(dPart[0]));
+            meetD.setHours(0, 0, 0, 0);
+            
+            const diffTime = meetD.getTime() - today.getTime();
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            if (diffDays <= 0) {
+                daysRemaining = 0;
+                isPast = true;
+            } else {
+                daysRemaining = diffDays;
+            }
+        }
+    }
     
     daysEl.setAttribute('data-count', daysRemaining);
     daysEl.textContent = daysRemaining;
@@ -892,6 +908,12 @@ function toggleMeet(i) {
     } else {
         pastMeetings[i - nUp].open = !wasOpen;
     }
+    
+    if (!wasOpen) {
+        selFolder = i;
+        updateSidebarCountdown();
+    }
+    
     saveMeetingsToLocal();
     
     const el = document.querySelector(`.meet[data-i="${i}"]`);
@@ -1713,6 +1735,51 @@ function doLogin(ev) {
     }
 }
 
+function editMeetingDate() {
+    let activeMi = -1;
+    allMeetings.forEach((m, idx) => {
+        m.docs.forEach(d => {
+            if (d.on) activeMi = idx;
+        });
+    });
+    
+    if (activeMi === -1 && selFolder !== null) {
+        activeMi = selFolder;
+    }
+    
+    if (activeMi === -1) {
+        alert("Vui lòng chọn một kỳ họp để cập nhật ngày!");
+        return;
+    }
+    
+    const m = allMeetings[activeMi];
+    const nUp = meetings.length;
+    const isPast = activeMi >= nUp;
+    const targetArray = isPast ? pastMeetings : meetings;
+    const targetIdx = isPast ? activeMi - nUp : activeMi;
+    
+    const newDateStr = prompt(`Nhập ngày họp mới cho "${m.name}" (định dạng DD/MM/YYYY, ví dụ: 25/07/2026):`, m.date === '—' ? '' : m.date);
+    if (newDateStr === null) return; 
+    
+    if (newDateStr.trim() === '') {
+        targetArray[targetIdx].date = '—';
+        m.date = '—';
+    } else {
+        const parts = newDateStr.split('/');
+        if (parts.length === 3 && parts[0].length <= 2 && parts[1].length <= 2 && parts[2].length === 4) {
+            const cleanDate = newDateStr.trim();
+            targetArray[targetIdx].date = cleanDate;
+            m.date = cleanDate;
+        } else {
+            alert("Định dạng ngày không hợp lệ! Vui lòng nhập đúng dạng DD/MM/YYYY.");
+            return;
+        }
+    }
+    
+    saveMeetingsToLocal();
+    updateSidebarCountdown();
+}
+
 // Register global callback functions for HTML calls
 window.openUpload = openUpload;
 window.closeUpload = closeUpload;
@@ -1744,3 +1811,4 @@ window.toggleVoiceInput = toggleVoiceInput;
 window.togglePass = togglePass;
 window.doLogin = doLogin;
 window.doLogout = doLogout;
+window.editMeetingDate = editMeetingDate;

@@ -113,7 +113,8 @@ body.authed .login-screen{display:none}
 .doc-del:hover{background:var(--primary);color:#fff}
 .doc-del svg{width:11px;height:11px}
 .dot{width:6px;height:6px;border-radius:var(--r-full);background:rgba(255,255,255,.4);margin-top:5px;flex-shrink:0}
-.meeting-card{margin-top:auto;background:rgba(255,255,255,.06);border:1px solid rgba(255,205,0,.4);border-radius:var(--r-md);padding:14px;color:#fff}
+.meeting-card{margin-top:auto;background:rgba(255,255,255,.06);border:1px solid rgba(255,205,0,.4);border-radius:var(--r-md);padding:14px;color:#fff;transition:border-color .2s ease,background .2s ease}
+.meeting-card:hover{border-color:rgba(255,205,0,.95);background:rgba(255,255,255,.1)}
 .mc-count{display:flex;align-items:center;gap:11px;margin-bottom:12px;background:var(--primary);border-radius:var(--r-md);padding:12px 14px}
 .mc-num{font-size:38px;font-weight:700;line-height:1;color:#fff}
 .mc-unit{font-size:11px;font-weight:700;line-height:1.2;color:rgba(255,255,255,.9);text-transform:uppercase;letter-spacing:.03em}
