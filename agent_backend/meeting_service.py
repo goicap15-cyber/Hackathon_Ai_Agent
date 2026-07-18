@@ -148,10 +148,10 @@ Hãy phân tích toàn bộ văn bản và trả về một kết quả JSON duy
 
 Yêu cầu cụ thể:
 1. NGÔN NGỮ KẾT QUẢ: Toàn bộ kết quả phân tích trong cấu trúc JSON trên (summary, agenda, terminology, suggested_questions, suggested_regulations) BẮT BUỘC phải được viết bằng TIẾNG VIỆT tự nhiên, chuẩn mực hành chính Việt Nam, kể cả khi tài liệu cuộc họp đầu vào bằng TIẾNG ANH.
-2. Phần "agenda": Trích xuất ít nhất 3-6 nội dung thảo luận cốt lõi từ tài liệu hành chính để lập khung lịch trình làm việc cuộc họp chi tiết. Đề xuất thời gian và đơn vị trình bày hợp lý.
-3. Phần "terminology": Tìm và giải thích **ít nhất 10 thuật ngữ chuyên ngành** (pháp lý, kỹ thuật, hành chính) xuất hiện trong tài liệu. Ghi rõ số trang chính xác mà thuật ngữ đó xuất hiện. Nếu tài liệu bằng tiếng Anh, dịch thuật ngữ đó sang tiếng Việt và đưa vào phần giải nghĩa.
-4. Phần "suggested_questions": Tự động tạo **ít nhất 5 câu hỏi tư duy phản biện** chất lượng cao bằng tiếng Việt dựa trên nội dung tài liệu để cán bộ thảo luận hoặc chuẩn bị chất vấn.
-5. Phần "suggested_regulations": Gợi ý **ít nhất 3-5 văn bản pháp luật hoặc quy định liên quan** của Việt Nam hoặc địa phương cần tham khảo để đối chiếu thông tin khi đọc tài liệu này.
+2. Phần "agenda": Trích xuất khoảng 3-5 nội dung thảo luận chính từ tài liệu hành chính để lập khung lịch trình cuộc họp.
+3. Phần "terminology": Tìm và giải thích cô đọng **khoảng 5 thuật ngữ chuyên ngành quan trọng nhất** xuất hiện trong tài liệu. Ghi rõ số trang chính xác mà thuật ngữ đó xuất hiện.
+4. Phần "suggested_questions": Tự động tạo **khoảng 3 câu hỏi tư duy phản biện sắc bén nhất** bằng tiếng Việt dựa trên nội dung tài liệu để cán bộ chất vấn.
+5. Phần "suggested_regulations": Gợi ý **khoảng 2-3 văn bản pháp luật hoặc quy định liên quan** của Việt Nam cần tham khảo đối chiếu.
 
 Tài liệu cần phân tích:
 {combined_text}
