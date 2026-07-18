@@ -1858,10 +1858,10 @@ function doLogout() {
     }
 }
 const VALID_ACCOUNTS = [
-    { name: "Nguyễn Văn A", dept: "Văn phòng UBND tỉnh", key: "ubnd2026" },
-    { name: "Trần Thị B", dept: "Sở Tài chính", key: "ubnd2026" },
-    { name: "Lê Văn C", dept: "Sở Kế hoạch và Đầu tư", key: "ubnd2026" },
-    { name: "Phạm Văn D", dept: "Sở Tài nguyên và Môi trường", key: "ubnd2026" }
+    { name: "Nguyễn Văn A", short: "a", dept: "Văn phòng UBND tỉnh", key: "ubnd2026" },
+    { name: "Trần Thị B", short: "b", dept: "Sở Tài chính", key: "ubnd2026" },
+    { name: "Lê Văn C", short: "c", dept: "Sở Kế hoạch và Đầu tư", key: "ubnd2026" },
+    { name: "Phạm Văn D", short: "d", dept: "Sở Tài nguyên và Môi trường", key: "ubnd2026" }
 ];
 
 function normalizeStr(s) {
@@ -1889,11 +1889,17 @@ async function doLogin(ev) {
     const normalizedUser = normalizeStr(user);
     const normalizedDept = normalizeStr(dept);
     
-    const account = VALID_ACCOUNTS.find(acc => 
-        normalizeStr(acc.name) === normalizedUser &&
-        normalizeStr(acc.dept) === normalizedDept &&
-        acc.key === key.trim()
-    );
+    const account = VALID_ACCOUNTS.find(acc => {
+        const accFullNormalized = normalizeStr(acc.name);
+        const accLastWord = normalizeStr(acc.name.split(" ").pop());
+        const accShort = normalizeStr(acc.short);
+        
+        return (accFullNormalized === normalizedUser || 
+                accLastWord === normalizedUser || 
+                accShort === normalizedUser) &&
+               normalizeStr(acc.dept) === normalizedDept &&
+               acc.key === key.trim();
+    });
     
     if (!account) {
         err.textContent = 'Khóa đăng nhập, Tên đăng nhập hoặc Phòng ban không khớp với danh sách đại biểu!';
