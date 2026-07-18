@@ -376,3 +376,6 @@ mark.hl-note{background:rgba(255,205,0,.35);border-radius:2px;padding:0 1px;colo
 .note-empty svg{width:34px;height:34px;color:var(--stone);margin-bottom:10px}
 .note-empty p{font-size:12.5px;line-height:1.6}
 .note-empty b{color:var(--mute)}
+
+/* Topbar left alignment wrapper */
+.topbar-left{display:flex;align-items:center;gap:12px;min-width:0}
