@@ -1,6 +1,5 @@
 # mcp_server/main.py
 import asyncio
-import httpx
 import json
 import os
 import mcp.types as types
@@ -9,112 +8,62 @@ from mcp.server.models import InitializationOptions
 from mcp.server.stdio import stdio_server
 from mcp.server.lowlevel.server import NotificationOptions
 
-CRM_API_BASE = os.getenv("CRM_API_BASE", "http://127.0.0.1:8001/api")
+server = Server("paperless-meetings-mcp")
 
-server = Server("banka-crm-mcp")
+def _read_current_document():
+    path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "agent_backend", "data", "document_store.json"))
+    if not os.path.exists(path):
+        return None
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return None
 
 @server.list_tools()
 async def handle_list_tools() -> list[types.Tool]:
-    """
-    Expose CRM APIs as MCP Tools to the LLM.
-    """
+    """Expose document processing tools as MCP Tools to the LLM."""
     return [
         types.Tool(
-            name="get_savings_due_this_week",
-            description="Lấy danh sách khách hàng có sổ tiết kiệm sắp đến hạn trong vòng 7 ngày tới để RM liên hệ nhắc nhở.",
-            inputSchema={
-                "type": "object",
-                "properties": {},
-            }
-        ),
-        types.Tool(
-            name="get_customer_profile",
-            description="Truy vấn thông tin hồ sơ 360 độ của khách hàng theo customer_id bao gồm: thông tin cá nhân, các cơ hội bán hàng (opportunities) và lịch sử tương tác trước (interactions).",
+            name="search_in_document",
+            description="Tìm kiếm từ khóa hoặc cụm từ trong tài liệu cuộc họp hiện tại. Trả về các phân đoạn văn bản và số trang tương ứng.",
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "customer_id": {
+                    "query": {
                         "type": "string",
-                        "description": "Mã định danh duy nhất của khách hàng (ví dụ: KH001, KH002...)"
+                        "description": "Từ khóa hoặc cụm từ cần tìm (ví dụ: 'kinh phí', 'Điện Biên', 'quy hoạch')"
                     }
                 },
-                "required": ["customer_id"]
+                "required": ["query"]
             }
         ),
         types.Tool(
-            name="get_active_campaigns",
-            description="Lấy danh sách các chiến dịch marketing đang diễn ra tại Bank A và các sản phẩm mục tiêu đi kèm.",
-            inputSchema={
-                "type": "object",
-                "properties": {}
-            }
-        ),
-        types.Tool(
-            name="log_interaction",
-            description="Ghi nhận lịch sử tương tác mới của RM với khách hàng vào CRM sau khi thực hiện cuộc gọi, gửi email hoặc gặp mặt.",
+            name="get_page_content",
+            description="Lấy toàn bộ nội dung chữ của một trang cụ thể trong tài liệu cuộc họp (1-indexed).",
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "customer_id": {"type": "string", "description": "Mã định danh khách hàng"},
-                    "interaction_type": {"type": "string", "description": "Hình thức tương tác (Call, Email, Meeting)"},
-                    "notes": {"type": "string", "description": "Ghi chú tóm tắt nội dung trao đổi"},
-                    "result": {"type": "string", "description": "Kết quả (Completed, Sent, Pending)"},
-                    "rm_name": {"type": "string", "description": "Tên Relationship Manager thực hiện"}
-                },
-                "required": ["customer_id", "interaction_type", "notes", "result", "rm_name"]
-            }
-        ),
-        types.Tool(
-            name="save_email_draft",
-            description="Lưu bản nháp email chăm sóc khách hàng vào hệ thống CRM.",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "customer_id": {"type": "string", "description": "Mã định danh khách hàng"},
-                    "subject": {"type": "string", "description": "Tiêu đề email"},
-                    "body": {"type": "string", "description": "Nội dung email"},
-                    "rm_name": {"type": "string", "description": "Tên RM soạn thảo"}
-                },
-                "required": ["customer_id", "subject", "body", "rm_name"]
-            }
-        ),
-        types.Tool(
-            name="save_call_script",
-            description="Lưu kịch bản cuộc gọi điện chăm sóc khách hàng vào hệ thống CRM.",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "customer_id": {"type": "string", "description": "Mã định danh khách hàng"},
-                    "script_content": {"type": "string", "description": "Nội dung kịch bản cuộc gọi"},
-                    "rm_name": {"type": "string", "description": "Tên RM soạn thảo"}
-                },
-                "required": ["customer_id", "script_content", "rm_name"]
-            }
-        ),
-        types.Tool(
-            name="query_product_knowledge",
-            description="Tìm kiếm thông tin chính sách, lãi suất, phí và ưu đãi của các sản phẩm tài chính Bank A (tiết kiệm, cho vay, bảo hiểm liên kết, thẻ...).",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "category": {
-                        "type": "string",
-                        "description": "Danh mục sản phẩm để lọc (ví dụ: Savings, Loans, Insurance, Cards...)"
+                    "page_num": {
+                        "type": "integer",
+                        "description": "Số trang cần lấy (bắt đầu từ 1)"
                     }
-                }
+                },
+                "required": ["page_num"]
             }
         ),
         types.Tool(
-            name="get_email_template",
-            description="Lấy danh sách các mẫu email hoặc kịch bản cuộc gọi chuẩn của Bank A để tham khảo.",
+            name="get_terminology_details",
+            description="Tra cứu định nghĩa và các trang chứa một thuật ngữ chuyên ngành đã được trích xuất từ tài liệu.",
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "type": {
+                    "term": {
                         "type": "string",
-                        "description": "Loại mẫu cần lấy (ví dụ: Email, CallScript)"
+                        "description": "Thuật ngữ cần tra cứu (ví dụ: 'kinh phí sự nghiệp')"
                     }
-                }
+                },
+                "required": ["term"]
             }
         )
     ]
@@ -123,97 +72,57 @@ async def handle_list_tools() -> list[types.Tool]:
 async def handle_call_tool(
     name: str, arguments: dict | None
 ) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
-    """
-    Execute tool request and fetch/send data to CRM APIs.
-    """
-    async with httpx.AsyncClient() as client:
-        try:
-            if name == "get_savings_due_this_week":
-                response = await client.get(f"{CRM_API_BASE}/customers?due_within_days=7")
-                response.raise_for_status()
-                return [types.TextContent(type="text", text=response.text)]
+    """Execute document search and content retrieval tools."""
+    try:
+        if name == "search_in_document":
+            doc = _read_current_document()
+            if not doc:
+                return [types.TextContent(type="text", text="Không có tài liệu nào hiện đang được mở.")]
+            query = arguments.get("query", "").lower()
+            results = []
+            for p in doc.get("pages", []):
+                if query in p.get("text", "").lower():
+                    text = p["text"]
+                    idx = text.lower().find(query)
+                    start = max(0, idx - 150)
+                    end = min(len(text), idx + len(query) + 150)
+                    snippet = text[start:end].replace("\n", " ")
+                    results.append(f"- [Trang {p['page_num']}]: ... {snippet} ...")
+            if not results:
+                return [types.TextContent(type="text", text=f"Không tìm thấy kết quả nào chứa '{query}' trong tài liệu.")]
+            return [types.TextContent(type="text", text="\n".join(results[:10]))]
 
-            elif name == "get_customer_profile":
-                customer_id = arguments.get("customer_id")
-                if not customer_id:
-                    raise ValueError("Thiếu customer_id")
-                
-                # Fetch profile, opportunities and interactions in parallel
-                profile_resp = await client.get(f"{CRM_API_BASE}/customers/{customer_id}")
-                opps_resp = await client.get(f"{CRM_API_BASE}/customers/{customer_id}/opportunities")
-                ints_resp = await client.get(f"{CRM_API_BASE}/customers/{customer_id}/interactions")
-                
-                profile_resp.raise_for_status()
-                
-                profile = profile_resp.json()
-                profile["opportunities"] = opps_resp.json() if opps_resp.status_code == 200 else []
-                profile["interactions"] = ints_resp.json() if ints_resp.status_code == 200 else []
-                
-                return [types.TextContent(type="text", text=json.dumps(profile, ensure_ascii=False, indent=2))]
+        elif name == "get_page_content":
+            doc = _read_current_document()
+            if not doc:
+                return [types.TextContent(type="text", text="Không có tài liệu nào hiện đang được mở.")]
+            try:
+                page_num = int(arguments.get("page_num", 1))
+            except ValueError:
+                return [types.TextContent(type="text", text="Số trang không hợp lệ.")]
+            for p in doc.get("pages", []):
+                if p["page_num"] == page_num:
+                    return [types.TextContent(type="text", text=f"--- NỘI DUNG TRANG {page_num} ---\n{p['text']}")]
+            return [types.TextContent(type="text", text=f"Không tìm thấy trang {page_num} trong tài liệu.")]
 
-            elif name == "get_active_campaigns":
-                response = await client.get(f"{CRM_API_BASE}/campaigns?active_only=true")
-                response.raise_for_status()
-                return [types.TextContent(type="text", text=response.text)]
+        elif name == "get_terminology_details":
+            doc = _read_current_document()
+            if not doc:
+                return [types.TextContent(type="text", text="Không có tài liệu nào hiện đang được mở.")]
+            term = arguments.get("term", "").lower()
+            terms_list = doc.get("analysis", {}).get("terminology", [])
+            for t in terms_list:
+                if t.get("term", "").lower() == term:
+                    pages_str = ", ".join(map(str, t.get("pages", [])))
+                    return [types.TextContent(type="text", text=f"Thuật ngữ: {t.get('term')}\nĐịnh nghĩa: {t.get('definition')}\nXuất hiện tại trang: {pages_str}")]
+            return [types.TextContent(type="text", text=f"Không tìm thấy thuật ngữ '{term}' trong bộ thuật ngữ của tài liệu.")]
 
-            elif name == "log_interaction":
-                payload = {
-                    "customer_id": arguments.get("customer_id"),
-                    "type": arguments.get("interaction_type"),
-                    "notes": arguments.get("notes"),
-                    "result": arguments.get("result"),
-                    "rm_name": arguments.get("rm_name")
-                }
-                response = await client.post(f"{CRM_API_BASE}/interactions", json=payload)
-                response.raise_for_status()
-                return [types.TextContent(type="text", text=response.text)]
+        else:
+            raise ValueError(f"Không tìm thấy tool: {name}")
 
-            elif name == "save_email_draft":
-                payload = {
-                    "customer_id": arguments.get("customer_id"),
-                    "subject": arguments.get("subject"),
-                    "body": arguments.get("body"),
-                    "rm_name": arguments.get("rm_name")
-                }
-                response = await client.post(f"{CRM_API_BASE}/draft-email", json=payload)
-                response.raise_for_status()
-                return [types.TextContent(type="text", text=response.text)]
+    except Exception as e:
+        return [types.TextContent(type="text", text=f"Lỗi xử lý MCP Tool: {str(e)}")]
 
-            elif name == "save_call_script":
-                payload = {
-                    "customer_id": arguments.get("customer_id"),
-                    "script_content": arguments.get("script_content"),
-                    "rm_name": arguments.get("rm_name")
-                }
-                response = await client.post(f"{CRM_API_BASE}/call-script", json=payload)
-                response.raise_for_status()
-                return [types.TextContent(type="text", text=response.text)]
-
-            elif name == "query_product_knowledge":
-                category = arguments.get("category") if arguments else None
-                url = f"{CRM_API_BASE}/products"
-                if category:
-                    url += f"?category={category}"
-                response = await client.get(url)
-                response.raise_for_status()
-                return [types.TextContent(type="text", text=response.text)]
-
-            elif name == "get_email_template":
-                template_type = arguments.get("type") if arguments else None
-                url = f"{CRM_API_BASE}/templates"
-                if template_type:
-                    url += f"?type={template_type}"
-                response = await client.get(url)
-                response.raise_for_status()
-                return [types.TextContent(type="text", text=response.text)]
-
-            else:
-                raise ValueError(f"Không tìm thấy tool: {name}")
-
-        except httpx.HTTPStatusError as e:
-            return [types.TextContent(type="text", text=f"Lỗi gọi CRM API ({e.response.status_code}): {e.response.text}")]
-        except Exception as e:
-            return [types.TextContent(type="text", text=f"Lỗi xử lý MCP Tool: {str(e)}")]
 
 async def main():
     async with stdio_server() as (read_stream, write_stream):
@@ -221,7 +130,7 @@ async def main():
             read_stream,
             write_stream,
             InitializationOptions(
-                server_name="banka-crm-mcp",
+                server_name="paperless-meetings-mcp",
                 server_version="1.0.0",
                 capabilities=server.get_capabilities(
                     NotificationOptions(tools_changed=True),

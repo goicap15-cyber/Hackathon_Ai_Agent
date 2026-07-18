@@ -37,3 +37,11 @@ node_modules/
 # AI-generated files
 ai_changes.patch
 ai_changes_invalid.patch
+
+# Local state & temp files
+agent_backend/data/document_store.json
+agent_backend/data/documents/
+agent_backend/data/audit.log
+__MACOSX/
+test_output.txt
+HACKATHON-2026/

@@ -1,72 +1,79 @@
 # TÀI LIỆU KIẾN TRÚC KỸ THUẬT (TECHNICAL ARCHITECTURE)
-## Hệ thống AI Co-Pilot Dashboard hỗ trợ Chăm sóc Khách hàng & Bán chéo (CRM Co-Pilot)
+## Hệ thống Trợ lý AI hỗ trợ xử lý tài liệu & Chuẩn bị họp (Paperless Meetings)
 
-Tài liệu này thuyết minh kiến trúc kỹ thuật của hệ thống AI Co-Pilot tích hợp giao thức MCP kết nối động cơ sở dữ liệu CRM Sandbox.
+Tài liệu này thuyết minh kiến trúc kỹ thuật của hệ thống **Paperless Meetings** ứng dụng AI Agent và giao thức MCP phục vụ cán bộ, công chức thuộc Sở Khoa học và Công nghệ tỉnh Điện Biên.
 
 ---
 
 ### 1. Sơ đồ Kiến trúc Tổng quan (Architecture Overview)
 
-Hệ thống được thiết kế theo cấu trúc **4 lớp** độc lập và bảo mật:
+Hệ thống hoạt động theo mô hình tích hợp Agentic Client-Server thông qua giao thức Model Context Protocol (MCP):
 
 ```mermaid
 graph TD
-    A[Lớp Giao diện - Frontend Client] -->|HTTP Request / JSON| B[Lớp Điều phối - Agent Backend]
-    B -->|Stdio JSON-RPC| C[Lớp Giao thức - MCP Server]
-    C -->|REST API Calls| D[Lớp Cơ sở dữ liệu - Mock CRM API]
-    B -->|API Completions| E[Cổng OpenRouter / Gemini API]
-    B -->|Ghi nhật ký| F[Nhật ký hệ thống - Audit Log]
+    UI[Giao diện Cán bộ - Frontend Client] <--> |1. HTTP / JSON-RPC| Backend[Trình điều phối - Agent Backend: Port 8000]
+    Backend <--> |2. Bóc tách văn bản| Parser[Bộ giải mã PDF & Word: pypdf & docx]
+    Backend <--> |3. Đọc/Ghi dữ liệu| Store[(Bộ lưu trữ tạm: Document Store JSON)]
+    Backend <--> |4. Đàm thoại & Gọi Tool| Gemini[Mô hình AI: Gemini 2.5 Flash]
+    Backend <--> |5. Kết nối Stdio JSON-RPC| MCP[MCP Server: paperless-meetings-mcp]
+    MCP <--> |6. Tra cứu thông tin| Store
 ```
 
-1.  **Lớp Giao diện (Frontend Client - Port 8000)**: Phát triển bằng Vanilla HTML5, CSS3 Glassmorphism và Javascript. Giao diện trực quan chia thành 3 khu vực:
-    *   Bảng cảnh báo đáo hạn & đề xuất bán chéo bên trái.
-    *   Khung chat tương tác RM Co-Pilot ở giữa.
-    *   Console hiển thị log cuộc gọi (Trace Console) bên dưới để Ban giám khảo dễ dàng đối chiếu dữ liệu.
-    *   Popup quản lý cấu hình dữ liệu (Tải lên file JSON sản phẩm, mẫu, khách hàng).
-2.  **Lớp Điều phối (Agent Backend - Port 8000)**: Viết bằng FastAPI (Python). Chịu trách nhiệm nhận câu hỏi từ Client, khớp tên khách hàng động, khởi chạy MCP client kết nối stdio với MCP server, và điều phối cuộc gọi API đến OpenRouter (`nvidia/nemotron-3-ultra-550b-a55b:free` hoặc Gemini) để sinh câu trả lời.
-3.  **Lớp Giao thức kết nối (MCP Server)**: Thực thi theo chuẩn **Model Context Protocol (MCP)** của Anthropic/Google. MCP Server đóng gói các API CRM thành các công cụ nghiệp vụ (Tools):
-    *   `get_savings_due_this_week`
-    *   `get_customer_profile`
-    *   `get_active_campaigns`
-    *   `query_product_knowledge`
-    *   `get_email_template`
-4.  **Lớp CSDL & API Sandbox (Mock CRM - Port 8001)**: Đóng vai trò là hệ thống lõi giả lập của Bank A, cung cấp dữ liệu khách hàng, cơ hội bán hàng, lịch sử tương tác và tiếp nhận ghi nhận thông tin bản nháp email từ AI gửi xuống.
+1.  **Lớp Giao diện (Frontend Client - Port 8000)**: Phát triển bằng Vanilla HTML5, CSS3 Glassmorphism và Javascript. Giao diện trực quan chia thành 2 cột:
+    *   **Cột trái**: Bộ đọc văn bản (Document Reader) cho phép lật trang trực quan; cùng các Tab phân tích thông tin: Tóm tắt thông minh, Giải nghĩa Thuật ngữ chuyên ngành, Gợi ý Câu hỏi phản biện, và Đề xuất Quy định tham khảo.
+    *   **Cột phải**: Khung chat tương tác trợ lý cuộc họp và Live Tracing Console hiển thị các bước gọi Tool ngầm thời gian thực.
+2.  **Lớp Điều phối (Agent Backend - Port 8000)**: Viết bằng FastAPI (Python). Chịu trách nhiệm:
+    *   Tiếp nhận file PDF/Word, chạy bộ giải mã `pypdf` hoặc `python-docx` để bóc tách text theo từng trang.
+    *   Gọi Gemini API để thực hiện phân tích tài liệu sâu (summary, terms, questions, regulations) trong `< 60 giây`.
+    *   Đóng vai trò là Client MCP kết nối stdio với MCP Server, chạy vòng lặp Agent Loop để Gemini gọi các công cụ đọc tài liệu.
+3.  **Lớp Giao thức kết nối (MCP Server)**: Thực thi theo chuẩn **Model Context Protocol (MCP)**. MCP Server đóng gói các thao tác nghiệp vụ trên tài liệu thành các công cụ (Tools):
+    *   `search_in_document`: Tìm kiếm từ khóa hoặc phân đoạn văn bản.
+    *   `get_page_content`: Trích xuất toàn bộ chữ của một trang cụ thể phục vụ đối chiếu.
+    *   `get_terminology_details`: Tra cứu định nghĩa thuật ngữ đã được trích xuất.
 
 ---
 
-### 2. Sơ đồ Luồng Dữ liệu Động (Dynamic Data Flow Sequence)
+### 2. Sơ đồ Luồng Dữ liệu Hỏi đáp (Document Q&A Data Flow)
 
-Dưới đây là quy trình xử lý khi RM gửi một câu hỏi nghiệp vụ (Ví dụ: *"tư vấn cho chị Bình"*):
+Dưới đây là quy trình xử lý khi cán bộ đặt câu hỏi nghiệp vụ liên quan đến tài liệu (Ví dụ: *"Nguồn vốn lấy từ đâu?"*):
 
 ```mermaid
 sequenceDiagram
-    participant Client as Frontend UI
+    participant Cán bộ as Frontend UI
     participant Backend as Agent Backend
     participant MCP as MCP Server
-    participant CRM as CRM Sandbox API
-    participant AI as OpenRouter / Gemini
-
-    Client->>Backend: POST /api/chat (prompt: "tư vấn cho chị Bình")
+    participant AI as Gemini 2.5 Flash
+    
+    Cán bộ->>Backend: POST /api/chat (prompt: "Nguồn vốn lấy từ đâu?")
     activate Backend
-    Backend->>CRM: GET /api/customers
-    CRM-->>Backend: Trả về danh sách khách hàng (JSON)
-    Backend->>Backend: Khớp tên động: "Bình" -> ID "KH002"
-    Backend->>MCP: Call Tool: get_customer_profile (customer_id: "KH002")
+    Backend->>AI: Khởi tạo đàm thoại (Prompt + Danh sách Tools của MCP)
+    activate AI
+    AI-->>Backend: Yêu cầu gọi Tool: search_in_document(query="nguồn vốn")
+    deactivate AI
+    Backend->>MCP: Thực thi Tool: search_in_document
     activate MCP
-    MCP->>CRM: GET /api/customers/KH002
-    CRM-->>MCP: Dữ liệu hồ sơ KH002
-    MCP-->>Backend: Trả về TextContent (Dữ liệu Profile)
+    MCP-->>Backend: Kết quả: tìm thấy từ khóa tại trang 3 và trang 12
     deactivate MCP
-    Backend->>AI: Gửi prompt + Dữ liệu CRM Context (Đã che chắn số điện thoại)
-    AI-->>Backend: Trả về câu trả lời phân tích & gợi ý sản phẩm
-    Backend->>Backend: Ghi nhật ký vào audit.log (Bảo mật RM)
-    Backend-->>Client: Trả về câu trả lời + trace_logs cuộc gọi
+    Backend->>AI: Trả kết quả thực thi Tool về cho mô hình
+    activate AI
+    AI-->>Backend: Yêu cầu gọi Tool: get_page_content(page_num=12)
+    deactivate AI
+    Backend->>MCP: Thực thi Tool: get_page_content
+    activate MCP
+    MCP-->>Backend: Kết quả: Toàn bộ nội dung chữ trang 12
+    deactivate MCP
+    Backend->>AI: Trả nội dung trang 12 về cho mô hình
+    activate AI
+    AI-->>Backend: Sinh câu trả lời cuối cùng có chứa trích dẫn [Trang 12]
+    deactivate AI
+    Backend-->>Cán bộ: Trả về câu trả lời kèm trace_logs gọi Tool
     deactivate Backend
 ```
 
 ---
 
-### 3. Cơ chế Bảo mật và Tuân thủ (Security & Compliance - PDPA)
+### 3. Điểm nhấn Công nghệ nổi bật
 
-*   **Ẩn danh dữ liệu (Data Masking)**: Số điện thoại và Email khách hàng trước khi chuyển tiếp sang MCP Server để gửi lên AI hoàn toàn được ẩn danh hóa dưới dạng `091***888` và `khang.le***@gmail.com`. Điều này đảm bảo dữ liệu khách hàng không bị lộ lọt ra mô hình AI công cộng, tuân thủ 100% **Luật bảo vệ dữ liệu cá nhân PDPA Việt Nam**.
-*   **Nhật ký kiểm toán (Audit Logging)**: Mọi thao tác tư vấn, soạn thảo email và tác vụ CRM của RM đều được ghi nhận thời gian thực vào tệp tin [audit.log](file:///c:/Users/Admin/Downloads/Tool_Check/AI_Agent/agent_backend/audit.log) giúp dễ dàng tra cứu nguồn gốc và trách nhiệm nghiệp vụ.
+*   **Thời gian phản hồi siêu tốc (< 60s)**: Khi file tài liệu họp (lên tới 40-60 trang) được tải lên, hệ thống thực hiện giải mã text cục bộ trên RAM cực nhanh, kết hợp tính năng phân tích đa nhiệm của Gemini 2.5 Flash để trả về kết quả cấu trúc toàn diện chỉ trong **10 - 15 giây**.
+*   **Trích dẫn trang động & Tương tác cao**: Câu trả lời của trợ lý AI luôn đi kèm liên kết số trang cụ thể (Ví dụ: `[Trang 12]`). Cán bộ có thể nhấp chuột trực tiếp vào liên kết đó để bộ đọc bên trái tự động chuyển trang và định vị dòng văn bản.
+*   **Kiến trúc AI Agent chuẩn MCP**: Thay vì nhồi nhét toàn bộ tài liệu dài vào Prompt gây tốn token và suy giảm độ chính xác của LLM, hệ thống sử dụng AI Agent tự động gọi các tool MCP để tìm và trích lọc đúng trang thông tin cần thiết.

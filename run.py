@@ -73,25 +73,7 @@ def run_services():
     agent_process = None
 
     try:
-        # 1. Start CRM API Service (Port 8001)
-        print("\n[+] Starting Mock CRM Server on http://127.0.0.1:8001...")
-        crm_process = _start_service(
-            py_executable, "mock_crm.main:app", "127.0.0.1", 8001, "Mock CRM Server"
-        )
-        if crm_process is None:
-            logger.error("[x] Aborting launch: Mock CRM Server failed to start.")
-            return
-
-        # 2. Give the CRM server a moment to bind and start
-        time.sleep(2)
-        if crm_process.poll() is not None:
-            logger.error(
-                "[x] Mock CRM Server exited during startup with code %s. Aborting.",
-                crm_process.returncode,
-            )
-            return
-
-        # 3. Start Agent Backend Service (exposed port)
+        # Start Agent Backend Service (exposed port)
         print(f"[+] Starting Agent Backend & Web host on http://0.0.0.0:{port}...")
         agent_process = _start_service(
             py_executable, "agent_backend.main:app", "0.0.0.0", port, "Agent Backend Server"
@@ -101,33 +83,25 @@ def run_services():
             return
 
         print("\n" + "=" * 60)
-        print("🚀 ALL DOCKING SYSTEMS OPERATIONAL!")
-        print("👉 MOCK CRM Sandbox APIs:  http://127.0.0.1:8001/docs")
-        print(f"👉 RM Chat Interface UI:   http://127.0.0.1:{port}")
+        print("🚀 PAPERLESS MEETINGS AI ASSISTANT OPERATIONAL!")
+        print(f"👉 Web Interface UI:   http://127.0.0.1:{port}")
         print("=" * 60)
-        print("\nPress Ctrl+C to terminate all services.\n")
+        print("\nPress Ctrl+C to terminate the service.\n")
 
         while True:
-            crm_status = crm_process.poll()
             agent_status = agent_process.poll()
-
-            if crm_status is not None:
-                logger.warning("[-] CRM Mock Server terminated with code %s", crm_status)
-                break
             if agent_status is not None:
                 logger.warning("[-] Agent Backend Server terminated with code %s", agent_status)
                 break
-
             time.sleep(1)
 
     except KeyboardInterrupt:
-        print("\n[!] Shutting down services...")
+        print("\n[!] Shutting down service...")
     except Exception as exc:
         logger.error("[x] Unexpected error: %s", exc)
     finally:
         # Terminate processes cleanly
         _stop_process(agent_process, "Agent Backend Server")
-        _stop_process(crm_process, "Mock CRM Server")
         print("[✓] All services stopped successfully. Goodbye!")
 
 

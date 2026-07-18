@@ -11,12 +11,23 @@ import datetime
 import httpx
 import json
 import uuid
+import shutil
+from dotenv import load_dotenv
+
+# Load env variables
+load_dotenv()
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
 # ─── True AI Agent ───────────────────────────────────────────────────────────
 from agent_backend.agent_loop import run_agent
+from agent_backend.meeting_service import (
+    process_and_analyze_document,
+    get_current_document,
+    save_current_document,
+    answer_document_question
+)
 
 logger = logging.getLogger("agent_backend.main")
 logging.basicConfig(level=logging. INFO)
@@ -80,13 +91,6 @@ def _parse_response(response: httpx. Response) -> Any:
 
 # ─── Routes ──────────────────────────────────────────────────────────────────
 
-@app.get("/api/audit-logs")
-def get_audit_logs():
-    if not os.path.exists(AUDIT_LOG_PATH):
-        return []
-    with open(AUDIT_LOG_PATH, "r", encoding="utf-8") as f:
-        return [line.strip() for line in f.readlines()[-50:]]
-
 
 @app.post("/api/chat")
 async def chat_endpoint(request: ChatRequest):
@@ -111,81 +115,161 @@ async def chat_endpoint(request: ChatRequest):
     return result
 
 
-@app.post("/api/upload-database")
-async def upload_database_proxy(append: bool = False, file: UploadFile = File(...)):
-    async with httpx. AsyncClient(timeout=300.0) as client:
+class MeetingChatRequest(BaseModel):
+    message: str
+    history: list = []
+
+
+class SelectDocRequest(BaseModel):
+    filename: str
+
+
+class DeleteDocRequest(BaseModel):
+    filename: str
+
+
+@app.on_event("startup")
+def copy_existing_document_to_library():
+    # If document_store.json exists, copy it to documents library
+    data_dir = os.path.join(os.path.dirname(__file__), "data")
+    doc_store = os.path.join(data_dir, "document_store.json")
+    docs_dir = os.path.join(data_dir, "documents")
+    os.makedirs(docs_dir, exist_ok=True)
+    
+    if os.path.exists(doc_store):
         try:
-            content = await file.read()
-            files = {
-                "file": (
-                    file.filename,
-                    content,
-                    file.content_type or "application/octet-stream",
-                )
-            }
-            response = await client.post(
-                f"{CRM_BASE_URL}/api/upload-database",
-                params={"append": append},
-                files=files,
-            )
-            return _parse_response(response)
-        except httpx. HTTPError as exc:
-            logger.exception("Upload proxy failed")
-            raise HTTPException(
-                status_code=status. HTTP_502_BAD_GATEWAY,
-                detail=f"Lỗi upload: {exc}",
-            )
+            with open(doc_store, "r", encoding="utf-8") as f:
+                doc_data = json.load(f)
+            filename = doc_data.get("filename")
+            if filename:
+                import re
+                safe_filename = re.sub(r'[^a-zA-Z0-9._-]', '_', filename)
+                lib_path = os.path.join(docs_dir, f"{safe_filename}.json")
+                if not os.path.exists(lib_path):
+                    with open(lib_path, "w", encoding="utf-8") as f:
+                        json.dump(doc_data, f, ensure_ascii=False, indent=2)
+                    logger.info(f"Copied existing active document {filename} to documents library.")
+        except Exception as e:
+            logger.error(f"Failed to copy active document to library: {e}")
 
 
-@app.delete("/api/upload-database")
-async def delete_database_proxy():
-    async with httpx. AsyncClient(timeout=60.0) as client:
+@app.get("/api/document/list")
+def list_documents():
+    data_dir = os.path.join(os.path.dirname(__file__), "data")
+    docs_dir = os.path.join(data_dir, "documents")
+    if not os.path.exists(docs_dir):
+        return {"status": "success", "data": []}
+    
+    file_list = []
+    for filename in os.listdir(docs_dir):
+        if filename.endswith(".json"):
+            path = os.path.join(docs_dir, filename)
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    doc_data = json.load(f)
+                    file_list.append({
+                        "filename": doc_data.get("filename", filename[:-5]),
+                        "page_count": len(doc_data.get("pages", []))
+                    })
+            except Exception:
+                pass
+    return {"status": "success", "data": file_list}
+
+
+@app.post("/api/document/select")
+def select_document(request: SelectDocRequest):
+    data_dir = os.path.join(os.path.dirname(__file__), "data")
+    docs_dir = os.path.join(data_dir, "documents")
+    import re
+    safe_filename = re.sub(r'[^a-zA-Z0-9._-]', '_', request.filename)
+    target_path = os.path.join(docs_dir, f"{safe_filename}.json")
+    
+    if not os.path.exists(target_path):
+        raise HTTPException(status_code=404, detail="Không tìm thấy tài liệu trong thư viện.")
+    
+    try:
+        with open(target_path, "r", encoding="utf-8") as f:
+            doc_data = json.load(f)
+        # Save as active document
+        save_current_document(doc_data)
+        return {"status": "success", "data": doc_data}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Lỗi khi chuyển đổi tài liệu: {str(e)}")
+
+
+@app.post("/api/document/delete")
+def delete_document(request: DeleteDocRequest):
+    data_dir = os.path.join(os.path.dirname(__file__), "data")
+    docs_dir = os.path.join(data_dir, "documents")
+    import re
+    safe_filename = re.sub(r'[^a-zA-Z0-9._-]', '_', request.filename)
+    target_path = os.path.join(docs_dir, f"{safe_filename}.json")
+    
+    # Check if this is the active document, if so, delete it from store
+    current_doc_path = os.path.join(data_dir, "document_store.json")
+    if os.path.exists(current_doc_path):
         try:
-            response = await client.delete(f"{CRM_BASE_URL}/api/database")
-            return _parse_response(response)
-        except httpx. HTTPError as exc:
-            logger.exception("Delete DB proxy failed")
-            raise HTTPException(
-                status_code=status. HTTP_502_BAD_GATEWAY,
-                detail=f"Lỗi xóa DB: {exc}",
-            )
+            with open(current_doc_path, "r", encoding="utf-8") as f:
+                curr = json.load(f)
+            if curr.get("filename") == request.filename:
+                os.remove(current_doc_path)
+        except Exception:
+            pass
 
-
-@app.get("/api/crm/{path:path}")
-async def crm_proxy_get(path: str, request: Request):
-    async with httpx. AsyncClient(timeout=30.0) as client:
+    if os.path.exists(target_path):
         try:
-            url = f"{CRM_BASE_URL}/{path}"
-            params = dict(request.query_params)
-            response = await client.get(url, params=params)
-            return _parse_response(response)
-        except httpx. HTTPError as exc:
-            logger.exception("CRM GET proxy failed for %s", path)
-            raise HTTPException(status_code=status. HTTP_502_BAD_GATEWAY, detail=str(exc))
+            os.remove(target_path)
+            return {"status": "success", "message": "Đã xoá tài liệu thành công"}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Không thể xoá tài liệu: {str(e)}")
+    return {"status": "success", "message": "Tài liệu không tồn tại trên máy chủ."}
 
 
-@app.post("/api/crm/{path:path}")
-async def crm_proxy_post(path: str, request: Request):
-    async with httpx. AsyncClient(timeout=30.0) as client:
-        try:
-            body = await request.json()
-            response = await client.post(f"{CRM_BASE_URL}/{path}", json=body)
-            return _parse_response(response)
-        except httpx. HTTPError as exc:
-            logger.exception("CRM POST proxy failed for %s", path)
-            raise HTTPException(status_code=status. HTTP_502_BAD_GATEWAY, detail=str(exc))
+@app.post("/api/document/upload")
+async def upload_document(file: UploadFile = File(...)):
+    # Create temp file
+    temp_dir = os.path.join(os.path.dirname(__file__), "temp")
+    os.makedirs(temp_dir, exist_ok=True)
+    temp_path = os.path.join(temp_dir, file.filename)
+    
+    try:
+        # Save upload file
+        with open(temp_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+            
+        # Parse & analyze using meeting service
+        result = await process_and_analyze_document(temp_path, file.filename)
+        return {"status": "success", "data": result["analysis"]}
+    except Exception as e:
+        logger.exception("Failed to process uploaded file")
+        raise HTTPException(status_code=500, detail=f"Lỗi xử lý file: {str(e)}")
+    finally:
+        # Clean up temp file
+        if os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except Exception:
+                pass
 
 
-@app.put("/api/crm/{path:path}")
-async def crm_proxy_put(path: str, request: Request):
-    async with httpx. AsyncClient(timeout=30.0) as client:
-        try:
-            body = await request.json()
-            response = await client.put(f"{CRM_BASE_URL}/{path}", json=body)
-            return _parse_response(response)
-        except httpx. HTTPError as exc:
-            logger.exception("CRM PUT proxy failed for %s", path)
-            raise HTTPException(status_code=status. HTTP_502_BAD_GATEWAY, detail=str(exc))
+@app.get("/api/document/current")
+def get_current_doc_endpoint():
+    doc = get_current_document()
+    if not doc:
+        return {"status": "empty", "message": "Không có tài liệu nào"}
+    return {"status": "success", "data": doc}
+
+
+@app.post("/api/document/chat")
+async def document_chat_endpoint(request: MeetingChatRequest):
+    try:
+        result = await answer_document_question(request.message, request.history)
+        return result
+    except Exception as e:
+        logger.exception("Failed in document chat Q&A")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 
 
 # ─── Static frontend ─────────────────────────────────────────────────────────
