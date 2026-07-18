@@ -41,6 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (welcomeEl) welcomeEl.textContent = savedUser;
         loadNotesFromStorage();
         renderNotes();
+        loadNotifsFromStorage();
         // GSAP Intro animations
         animateIntro();
     } else {
@@ -1475,16 +1476,33 @@ function scrollTophysPage(pageNum) {
 }
 
 // ---------------- NOTIFICATIONS ACTIONS ----------------
-const MOCK_NOTIFS = [
+let notifications = [];
+
+const DEFAULT_NOTIFS = [
   { t: 'Đã cập nhật hệ thống: sẵn sàng nạp tài liệu Word, PDF.', time: 'Hôm nay · 09:12', read: false },
   { t: 'Tài liệu “Dự thảo Nghị quyết phân bổ ngân sách 2026” đã được xử lý xong.', time: 'Hôm qua · 16:40', read: false },
   { t: 'Kỳ họp thứ 12 sẽ diễn ra sau 1 ngày.', time: '2 ngày trước', read: true }
 ];
 
+function loadNotifsFromStorage() {
+    const currentUser = localStorage.getItem('gov_user') || 'default';
+    const localData = localStorage.getItem('gov_notifs_' + currentUser);
+    if (localData) {
+        notifications = JSON.parse(localData);
+    } else {
+        notifications = JSON.parse(JSON.stringify(DEFAULT_NOTIFS));
+    }
+}
+
+function saveNotifsToStorage() {
+    const currentUser = localStorage.getItem('gov_user') || 'default';
+    localStorage.setItem('gov_notifs_' + currentUser, JSON.stringify(notifications));
+}
+
 function updateNotifBadge() {
     const badge = document.getElementById('notifBadge');
     if (!badge) return;
-    const unreadCount = MOCK_NOTIFS.filter(n => !n.read).length;
+    const unreadCount = notifications.filter(n => !n.read).length;
     if (unreadCount > 0) {
         badge.textContent = unreadCount;
         badge.classList.remove('hide');
@@ -1496,7 +1514,8 @@ function updateNotifBadge() {
 function addNotification(text) {
     const now = new Date();
     const timeStr = `Hôm nay · ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-    MOCK_NOTIFS.unshift({ t: text, time: timeStr, read: false });
+    notifications.unshift({ t: text, time: timeStr, read: false });
+    saveNotifsToStorage();
     renderNotif();
     updateNotifBadge();
 }
@@ -1504,7 +1523,7 @@ function addNotification(text) {
 function renderNotif() {
     const p = document.getElementById('notifPanel');
     if (!p) return;
-    p.innerHTML = `<div class="np-head">Thông báo</div>` + MOCK_NOTIFS.map(n => `
+    p.innerHTML = `<div class="np-head">Thông báo</div>` + notifications.map(n => `
       <div class="np-item ${n.read ? 'read' : ''}"><span class="np-dot"></span>
         <div><div class="np-t">${n.t}</div><div class="np-time">${n.time}</div></div>
       </div>`).join('');
@@ -1516,7 +1535,8 @@ function toggleNotif() {
     const show = !p.classList.contains('show');
     p.classList.toggle('show', show);
     if (show) {
-      MOCK_NOTIFS.forEach(n => n.read = true);
+      notifications.forEach(n => n.read = true);
+      saveNotifsToStorage();
       updateNotifBadge();
       renderNotif();
       if (!reduce) gsap.from('.notif-panel .np-item', { y: 6, autoAlpha: 0, stagger: 0.05, duration: 0.3 });
@@ -2033,6 +2053,9 @@ function doLogout() {
     localStorage.removeItem('gov_dept');
     notes = [];
     renderNotes();
+    notifications = [];
+    renderNotif();
+    updateNotifBadge();
     
     document.getElementById('loginKey').value = '';
     document.getElementById('loginErr').textContent = '';
@@ -2110,6 +2133,7 @@ async function doLogin(ev) {
     // Load notes for the logged in user
     loadNotesFromStorage();
     renderNotes();
+    loadNotifsFromStorage();
     
     const welcomeEl = document.getElementById('welcomeName');
     if (welcomeEl) welcomeEl.textContent = exactName;
