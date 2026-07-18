@@ -788,6 +788,22 @@ async function sendQ() {
         chatHistory.push({ role: 'user', message: text });
         chatHistory.push({ role: 'ai', message: answerText });
         
+        // Save to persistent storedChats
+        let activeDocName = 'Tài liệu';
+        allMeetings.forEach(m => {
+            m.docs.forEach(d => {
+                if (d.on) activeDocName = d.t;
+            });
+        });
+        storedChats.unshift({
+            docName: activeDocName,
+            question: text,
+            answer: answerText,
+            timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' ' + new Date().toLocaleDateString('vi-VN')
+        });
+        if (storedChats.length > 50) storedChats.pop();
+        localStorage.setItem('gov_stored_chats', JSON.stringify(storedChats));
+        
     } catch (e) {
         console.error('Lỗi API Chat:', e);
         const typingEl = document.getElementById(typingId);
@@ -1815,6 +1831,106 @@ function delNoteQ(k, qi) {
     renderNotes();
 }
 
+/* ---------- Lịch sử trò chuyện ---------- */
+let storedChats = JSON.parse(localStorage.getItem('gov_stored_chats') || '[]');
+
+function toggleChatHistory() {
+    const panel = document.getElementById('chatHistoryPanel');
+    if (!panel) return;
+    const isShown = panel.style.display === 'block';
+    panel.style.display = isShown ? 'none' : 'block';
+    if (!isShown) {
+        renderStoredChats();
+    }
+}
+
+function clearChatHistory() {
+    storedChats = [];
+    localStorage.removeItem('gov_stored_chats');
+    renderStoredChats();
+}
+
+function renderStoredChats() {
+    const list = document.getElementById('chatHistoryList');
+    if (!list) return;
+    if (storedChats.length === 0) {
+        list.innerHTML = `<div style="text-align: center; color: var(--ash); padding: 20px 10px; font-size: 12.5px;">Chưa có lịch sử trò chuyện nào.</div>`;
+        return;
+    }
+    list.innerHTML = storedChats.map((c, idx) => `
+        <div class="history-item" style="border: 1px solid var(--hairline); border-radius: var(--r-sm); padding: 8px 10px; background: var(--canvas); font-size: 12px; cursor: pointer; transition: all 0.15s ease;" onclick="loadHistoryToChat(${idx})">
+          <div style="font-size: 10.5px; color: var(--mute); display: flex; justify-content: space-between; margin-bottom: 4px;">
+            <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px;">📂 ${c.docName}</span>
+            <span style="flex-shrink:0;">${c.timestamp}</span>
+          </div>
+          <div style="font-weight: 600; color: var(--ink); margin-bottom: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">❓ ${c.question}</div>
+          <div style="color: var(--body); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.4;">🤖 ${c.answer.replace(/<[^>]*>/g, '')}</div>
+        </div>
+    `).join('');
+}
+
+function loadHistoryToChat(idx) {
+    const c = storedChats[idx];
+    if (!c) return;
+    
+    // 1. Find document by name
+    let foundDoc = null;
+    let foundMeet = null;
+    allMeetings.forEach(m => {
+        m.docs.forEach(d => {
+            if (d.t === c.docName) {
+                foundDoc = d;
+                foundMeet = m;
+            }
+        });
+    });
+    
+    if (foundDoc && foundMeet) {
+        toggleMeet(foundMeet.id);
+        selectDoc(foundDoc.t);
+    }
+    
+    // 2. Put this Q&A into active chat history thread panel
+    setTimeout(() => {
+        const thread = document.getElementById('thread');
+        if (thread) {
+            thread.innerHTML = '';
+            appendChatBubble('user', c.question);
+            
+            let finalHTML = c.answer;
+            if (typeof marked !== 'undefined') {
+                try {
+                    finalHTML = marked.parse(c.answer);
+                } catch(e) {}
+            }
+            finalHTML = finalHTML.replace(/\[(?:Trang\s+)?(\d+)\]/gi, (match, pageNum) => {
+                return `<span class="chip" onclick="scrollTophysPage(${pageNum})">📍 Trang ${pageNum}</span>`;
+            });
+            appendChatBubble('ai', finalHTML);
+            
+            // Sync session chatHistory
+            chatHistory = [
+                { role: 'user', message: c.question },
+                { role: 'ai', message: c.answer }
+            ];
+        }
+        showTab('qa');
+    }, 500);
+    
+    // Close panel
+    const panel = document.getElementById('chatHistoryPanel');
+    if (panel) panel.style.display = 'none';
+}
+
+// Click outside handler
+document.addEventListener('click', (e) => {
+    const wrap = document.querySelector('.chat-history-wrap');
+    const panel = document.getElementById('chatHistoryPanel');
+    if (panel && wrap && !wrap.contains(e.target)) {
+        panel.style.display = 'none';
+    }
+});
+
 /* ---------- Đăng nhập / Đăng xuất ---------- */
 function initLoginAnimation() {
     if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
@@ -1981,3 +2097,6 @@ window.delNote = delNote;
 window.toggleNote = toggleNote;
 window.addNoteQ = addNoteQ;
 window.delNoteQ = delNoteQ;
+window.toggleChatHistory = toggleChatHistory;
+window.clearChatHistory = clearChatHistory;
+window.loadHistoryToChat = loadHistoryToChat;
