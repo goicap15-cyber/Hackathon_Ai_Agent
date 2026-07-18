@@ -34,13 +34,19 @@ document.addEventListener('DOMContentLoaded', () => {
     // Check saved login session
     const savedUser = localStorage.getItem('gov_user');
     const savedDept = localStorage.getItem('gov_dept');
-    if (savedUser && savedDept) {
+    const remember = localStorage.getItem('gov_remember') === 'true';
+    if (savedUser && savedDept && remember) {
         document.body.classList.add('authed');
         const welcomeEl = document.getElementById('welcomeName');
         if (welcomeEl) welcomeEl.textContent = savedUser;
+        loadNotesFromStorage();
+        renderNotes();
         // GSAP Intro animations
         animateIntro();
     } else {
+        localStorage.removeItem('gov_user');
+        localStorage.removeItem('gov_dept');
+        localStorage.removeItem('gov_remember');
         initLoginAnimation();
     }
 });
@@ -1669,8 +1675,18 @@ function buildTrongDong() {
 }
 
 /* ---------- Ghi chú (bôi đen văn bản → lưu) ---------- */
-const notes = [];
+let notes = [];
 let pendingSel = null; // {text, src, docId, docTitle}
+
+function loadNotesFromStorage() {
+    const currentUser = localStorage.getItem('gov_user') || 'default';
+    notes = JSON.parse(localStorage.getItem('gov_notes_' + currentUser) || '[]');
+}
+
+function saveNotesToStorage() {
+    const currentUser = localStorage.getItem('gov_user') || 'default';
+    localStorage.setItem('gov_notes_' + currentUser, JSON.stringify(notes));
+}
 
 function findArticle(node) {
     let el = node.nodeType === 3 ? node.parentElement : node;
@@ -1752,6 +1768,8 @@ function saveSelection() {
         open: true
     });
     
+    saveNotesToStorage();
+    
     const btn = document.getElementById('saveNoteBtn');
     if (btn) btn.classList.remove('show');
     window.getSelection().removeAllRanges();
@@ -1809,11 +1827,13 @@ function renderNotes() {
 
 function delNote(k) {
     notes.splice(k, 1);
+    saveNotesToStorage();
     renderNotes();
 }
 
 function toggleNote(k) {
     notes[k].open = !notes[k].open;
+    saveNotesToStorage();
     renderNotes();
 }
 
@@ -1821,11 +1841,13 @@ function addNoteQ(k, input) {
     const q = input.value.trim();
     if (!q) return;
     notes[k].qs.push(q);
+    saveNotesToStorage();
     renderNotes();
 }
 
 function delNoteQ(k, qi) {
     notes[k].qs.splice(qi, 1);
+    saveNotesToStorage();
     renderNotes();
 }
 
@@ -1845,6 +1867,8 @@ function togglePass() {
 function doLogout() {
     localStorage.removeItem('gov_user');
     localStorage.removeItem('gov_dept');
+    notes = [];
+    renderNotes();
     
     document.getElementById('loginKey').value = '';
     document.getElementById('loginErr').textContent = '';
@@ -1913,15 +1937,15 @@ async function doLogin(ev) {
     // Sync with backend files on successful login so they see all other users' uploads immediately
     await syncWithBackendFiles();
     
-    // Save to localStorage if "Ghi nhớ phòng ban" is checked
+    // Save to localStorage
     const remember = document.getElementById('loginRemember').checked;
-    if (remember) {
-        localStorage.setItem('gov_user', exactName);
-        localStorage.setItem('gov_dept', exactDept);
-    } else {
-        localStorage.removeItem('gov_user');
-        localStorage.removeItem('gov_dept');
-    }
+    localStorage.setItem('gov_user', exactName);
+    localStorage.setItem('gov_dept', exactDept);
+    localStorage.setItem('gov_remember', remember ? 'true' : 'false');
+    
+    // Load notes for the logged in user
+    loadNotesFromStorage();
+    renderNotes();
     
     const welcomeEl = document.getElementById('welcomeName');
     if (welcomeEl) welcomeEl.textContent = exactName;
