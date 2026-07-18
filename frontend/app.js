@@ -356,6 +356,9 @@ function renderDocumentPane(doc) {
     const wrappedHTML = wrapTermsInDOM(html, terminology);
     container.innerHTML = wrappedHTML;
     
+    // Apply note highlights dynamically on load
+    applyNoteHighlights();
+    
     // Re-initialize ScrollTrigger for new document content with optimized performance
     setTimeout(() => {
         // Kill previous scroll triggers to free memory and prevent lag
@@ -382,6 +385,51 @@ function renderDocumentPane(doc) {
         ScrollTrigger.refresh();
     }, 100);
 }
+
+function applyNoteHighlights() {
+    if (!currentDoc) return;
+    const container = document.getElementById('doc-content-body');
+    if (!container) return;
+    
+    // Filter notes belonging to the current document
+    const currentNotes = notes.filter(n => n.doc === currentDoc.filename);
+    if (currentNotes.length === 0) return;
+    
+    currentNotes.forEach(n => {
+        const textToFind = n.text.trim();
+        if (!textToFind) return;
+        
+        // Find text nodes recursively
+        const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null, false);
+        const textNodes = [];
+        let node;
+        while (node = walker.nextNode()) {
+            textNodes.push(node);
+        }
+        
+        textNodes.forEach(textNode => {
+            const index = textNode.nodeValue.indexOf(textToFind);
+            if (index !== -1) {
+                const parent = textNode.parentNode;
+                // If already highlighted, skip
+                if (parent && parent.classList.contains('hl-note')) return;
+                
+                const range = document.createRange();
+                range.setStart(textNode, index);
+                range.setEnd(textNode, index + textToFind.length);
+                
+                const mark = document.createElement('mark');
+                mark.className = 'hl-note';
+                mark.id = n.refId;
+                
+                try {
+                    range.surroundContents(mark);
+                } catch (e) {
+                    console.warn("Could not wrap note highlight node:", e);
+                }
+            }
+        });
+    });
 
 // Highly optimized single-pass RegExp approach to safely insert term spans
 function wrapTermsInDOM(htmlString, terminology) {
@@ -1780,6 +1828,42 @@ function saveSelection() {
 }
 
 function gotoNote(refId) {
+    const note = notes.find(n => n.refId === refId);
+    if (!note) return;
+    
+    if (!currentDoc || currentDoc.filename !== note.doc) {
+        // Find the meeting index and document index
+        let foundMeetIdx = -1;
+        let foundDocIdx = -1;
+        allMeetings.forEach((m, mi) => {
+            m.docs.forEach((d, di) => {
+                if (d.t === note.doc) {
+                    foundMeetIdx = mi;
+                    foundDocIdx = di;
+                }
+            });
+        });
+        
+        if (foundMeetIdx !== -1 && foundDocIdx !== -1) {
+            const meet = allMeetings[foundMeetIdx];
+            if (!meet.open) {
+                meet.open = true;
+            }
+            selectDoc(foundMeetIdx, foundDocIdx);
+            
+            // Wait for document to load and render highlights, then scroll
+            setTimeout(() => {
+                scrollAndHighlightNote(refId);
+            }, 850);
+            return;
+        }
+    }
+    
+    // If it's already the active document, scroll immediately
+    scrollAndHighlightNote(refId);
+}
+
+function scrollAndHighlightNote(refId) {
     const el = document.getElementById(refId);
     if (!el) return;
     const scroller = document.getElementById('docpane');
