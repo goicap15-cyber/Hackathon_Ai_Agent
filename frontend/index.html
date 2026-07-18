@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Lora:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=2.7">
+<link rel="stylesheet" href="style.css?v=2.8">
 <!-- Markdown Parser -->
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
@@ -116,14 +116,6 @@
           <div class="ts-results" id="tsResults"></div>
         </div>
       </div>
-      
-      <!-- Messenger Icon for Chat History -->
-      <div class="chat-history-wrap" style="margin-left: 12px; margin-right: 12px;">
-        <button class="chat-history-btn" onclick="openChatHistoryModal()" title="Lịch sử trò chuyện" style="background: var(--surface-card); border: 1px solid var(--hairline); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--mute); transition: all 0.2s ease;">
-          <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width: 20px; height: 20px;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-        </button>
-      </div>
-
       <span class="welcome" style="margin-left: auto;">Chào mừng đồng chí <b id="welcomeName">—</b></span>
     </div>
 
@@ -307,31 +299,10 @@
   </div>
 </div>
 
-<!-- Modal Lịch sử trò chuyện -->
-<div class="modal-scrim" id="chatHistoryModal">
-  <div class="modal" role="dialog" aria-modal="true" style="max-width: 600px;">
-    <div class="modal-head">
-      <div>
-        <h3>Lịch sử cuộc trò chuyện</h3>
-        <p>Chọn một cuộc trò chuyện để tiếp tục trao đổi với Trợ lý AI</p>
-      </div>
-      <button class="modal-x" onclick="closeChatHistoryModal()" aria-label="Đóng">
-        <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
-      </button>
-    </div>
-    
-    <div style="display: flex; justify-content: flex-end; margin-bottom: 12px;">
-      <button class="btn btn-secondary" onclick="clearChatHistory()" style="padding: 6px 12px; font-size: 12px; height: auto;">Xoá toàn bộ lịch sử</button>
-    </div>
 
-    <div id="chatHistoryList" style="display: flex; flex-direction: column; gap: 10px; max-height: 400px; overflow-y: auto; padding-right: 4px;">
-      <!-- History sessions render here -->
-    </div>
-  </div>
-</div>
 
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
-<script src="app.js?v=2.7"></script>
+<script src="app.js?v=2.8"></script>
 </body>
 </html>

@@ -3,8 +3,6 @@
 // Global State
 let currentDoc = null;
 let chatHistory = [];
-let storedChats = JSON.parse(localStorage.getItem('gov_stored_chats') || '[]');
-let activeThreadId = null;
 let meetings = [];
 let pastMeetings = [];
 let allMeetings = [];
@@ -790,21 +788,7 @@ async function sendQ() {
         chatHistory.push({ role: 'user', message: text });
         chatHistory.push({ role: 'ai', message: answerText });
         
-        // Save to persistent storedChats
-        let activeDocName = 'Tài liệu';
-        allMeetings.forEach(m => {
-            m.docs.forEach(d => {
-                if (d.on) activeDocName = d.t;
-            });
-        });
-        storedChats.unshift({
-            docName: activeDocName,
-            question: text,
-            answer: answerText,
-            timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' ' + new Date().toLocaleDateString('vi-VN')
-        });
-        if (storedChats.length > 50) storedChats.pop();
-        localStorage.setItem('gov_stored_chats', JSON.stringify(storedChats));
+
         
     } catch (e) {
         console.error('Lỗi API Chat:', e);
@@ -945,7 +929,6 @@ function toggleMeet(i) {
 async function selectDoc(mi, di, ev) {
     if (ev) ev.stopPropagation();
     else if (window.event) window.event.stopPropagation();
-    activeThreadId = null; // Start fresh chat session
     const name = allMeetings[mi].docs[di].t;
     
     // Highlight UI immediately
@@ -1276,7 +1259,6 @@ async function confirmUpload() {
 }
 
 async function selectDocumentFromLibrary(filename) {
-    activeThreadId = null; // Start fresh chat session
     showLoading('Đang nạp tài liệu...', `Đang chuẩn bị nội dung tài liệu “${filename}”`);
     try {
         const response = await fetch('/api/document/select', {
@@ -1836,112 +1818,7 @@ function delNoteQ(k, qi) {
     renderNotes();
 }
 
-/* ---------- Lịch sử trò chuyện ---------- */
 
-
-function openChatHistoryModal() {
-    const modal = document.getElementById('chatHistoryModal');
-    if (modal) {
-        modal.classList.add('show');
-        renderStoredChats();
-    }
-}
-
-function closeChatHistoryModal() {
-    const modal = document.getElementById('chatHistoryModal');
-    if (modal) modal.classList.remove('show');
-}
-
-function clearChatHistory() {
-    storedChats = [];
-    activeThreadId = null;
-    localStorage.removeItem('gov_stored_chats');
-    renderStoredChats();
-}
-
-function renderStoredChats() {
-    const list = document.getElementById('chatHistoryList');
-    if (!list) return;
-    if (storedChats.length === 0) {
-        list.innerHTML = `<div style="text-align: center; color: var(--ash); padding: 30px 20px; font-size: 13px;">Chưa có lịch sử cuộc trò chuyện nào.</div>`;
-        return;
-    }
-    list.innerHTML = storedChats.map((c, idx) => {
-        const lastUser = c.messages.filter(m => m.role === 'user').pop()?.message || 'Câu hỏi trống';
-        const lastAi = c.messages.filter(m => m.role === 'ai').pop()?.message || 'Chưa có trả lời';
-        const msgCount = c.messages.length / 2;
-        
-        return `
-        <div class="history-item" style="border: 1px solid var(--hairline); border-radius: var(--r-md); padding: 12px 14px; background: var(--surface-card); font-size: 13px; cursor: pointer; transition: all 0.15s ease;" onclick="loadHistoryToChat(${idx})">
-          <div style="font-size: 11px; color: var(--mute); display: flex; justify-content: space-between; margin-bottom: 6px; align-items: center;">
-            <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 280px; font-weight:600;">📂 ${c.docName}</span>
-            <span style="flex-shrink:0; background: var(--secondary-bg); padding: 2px 6px; border-radius: var(--r-sm);">${msgCount} lượt hỏi</span>
-          </div>
-          <div style="font-weight: 700; color: var(--ink); margin-bottom: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">❓ ${lastUser}</div>
-          <div style="color: var(--body); font-size: 12px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.45;">🤖 ${lastAi.replace(/<[^>]*>/g, '')}</div>
-          <div style="font-size: 10px; color: var(--ash); text-align: right; margin-top: 6px;">Cập nhật lúc: ${c.lastUpdated}</div>
-        </div>`;
-    }).join('');
-}
-
-function loadHistoryToChat(idx) {
-    const session = storedChats[idx];
-    if (!session) return;
-    
-    // 1. Find and select the corresponding document by meeting and document indices
-    let foundMeetIdx = -1;
-    let foundDocIdx = -1;
-    allMeetings.forEach((m, mi) => {
-        m.docs.forEach((d, di) => {
-            if (d.t === session.docName) {
-                foundMeetIdx = mi;
-                foundDocIdx = di;
-            }
-        });
-    });
-    
-    if (foundMeetIdx !== -1 && foundDocIdx !== -1) {
-        const meet = allMeetings[foundMeetIdx];
-        if (!meet.open) {
-            meet.open = true;
-        }
-        selectDoc(foundMeetIdx, foundDocIdx);
-    }
-    
-    // Set activeThreadId after selectDoc since selectDoc resets it to null
-    activeThreadId = session.id;
-    
-    // 2. Load the message history inside the Q&A panel
-    setTimeout(() => {
-        const thread = document.getElementById('thread');
-        if (thread) {
-            thread.innerHTML = '';
-            chatHistory = [];
-            
-            session.messages.forEach(msg => {
-                if (msg.role === 'user') {
-                    appendChatBubble('user', msg.message);
-                    chatHistory.push({ role: 'user', message: msg.message });
-                } else {
-                    let finalHTML = msg.message;
-                    if (typeof marked !== 'undefined') {
-                        try {
-                            finalHTML = marked.parse(msg.message);
-                        } catch(e) {}
-                    }
-                    finalHTML = finalHTML.replace(/\[(?:Trang\s+)?(\d+)\]/gi, (match, pageNum) => {
-                        return `<span class="chip" onclick="scrollTophysPage(${pageNum})">📍 Trang ${pageNum}</span>`;
-                    });
-                    appendChatBubble('ai', finalHTML);
-                    chatHistory.push({ role: 'ai', message: msg.message });
-                }
-            });
-        }
-        showTab('qa');
-    }, 500);
-    
-    closeChatHistoryModal();
-}
 
 /* ---------- Đăng nhập / Đăng xuất ---------- */
 function initLoginAnimation() {
@@ -2109,7 +1986,4 @@ window.delNote = delNote;
 window.toggleNote = toggleNote;
 window.addNoteQ = addNoteQ;
 window.delNoteQ = delNoteQ;
-window.openChatHistoryModal = openChatHistoryModal;
-window.closeChatHistoryModal = closeChatHistoryModal;
-window.clearChatHistory = clearChatHistory;
-window.loadHistoryToChat = loadHistoryToChat;
+
