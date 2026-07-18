@@ -107,7 +107,7 @@ body.authed .login-screen{display:none}
 .doc-item:hover{background:rgba(255,255,255,.06);color:#fff}
 .doc-item.on{color:var(--gold);font-weight:600}
 .doc-item.on .dot{background:var(--gold)}
-.di-name{flex:1}
+.di-name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .doc-del{flex-shrink:0;width:18px;height:18px;border:none;background:transparent;color:rgba(255,255,255,.4);border-radius:var(--r-full);cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0;transition:.15s;margin-top:1px}
 .doc-item:hover .doc-del{opacity:1}
 .doc-del:hover{background:var(--primary);color:#fff}
