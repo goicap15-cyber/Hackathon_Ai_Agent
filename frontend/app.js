@@ -95,6 +95,8 @@ async function syncWithBackendFiles() {
             pastMeetings.forEach(m => m.docs.forEach(d => localFileNames.add(d.t.toLowerCase())));
             
             // Check for new backend files
+            const backendFileNames = new Set(backendFiles.map(file => file.filename.toLowerCase()));
+            
             backendFiles.forEach(file => {
                 const fname = file.filename;
                 const baseName = fname.replace(/\.[^/.]+$/, ""); // strip extension
@@ -107,6 +109,15 @@ async function syncWithBackendFiles() {
                     meetings[0].docs.push({ t: fname, on: false });
                 }
             });
+            
+            // Filter out files that no longer exist in the backend (deleted files)
+            meetings.forEach(m => {
+                m.docs = m.docs.filter(d => backendFileNames.has(d.t.toLowerCase()));
+            });
+            pastMeetings.forEach(m => {
+                m.docs = m.docs.filter(d => backendFileNames.has(d.t.toLowerCase()));
+            });
+            
             saveMeetingsToLocal();
         }
     } catch (e) {
@@ -1846,7 +1857,24 @@ function doLogout() {
         scr.style.display = 'flex';
     }
 }
-function doLogin(ev) {
+const VALID_ACCOUNTS = [
+    { name: "Nguyễn Văn A", dept: "Văn phòng UBND tỉnh", key: "ubnd2026" },
+    { name: "Trần Thị B", dept: "Sở Tài chính", key: "ubnd2026" },
+    { name: "Lê Văn C", dept: "Sở Kế hoạch và Đầu tư", key: "ubnd2026" },
+    { name: "Phạm Văn D", dept: "Sở Tài nguyên và Môi trường", key: "ubnd2026" }
+];
+
+function normalizeStr(s) {
+    if (!s) return "";
+    return s.normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .toLowerCase()
+            .replace(/đ/g, "d")
+            .replace(/\s+/g, " ")
+            .trim();
+}
+
+async function doLogin(ev) {
     ev.preventDefault();
     const user = document.getElementById('loginUser').value.trim();
     const dept = document.getElementById('loginDept').value;
@@ -1857,18 +1885,40 @@ function doLogin(ev) {
     if (!key) { err.textContent = 'Vui lòng nhập khóa đăng nhập.'; return; }
     err.textContent = '';
     
+    // Validate hardcoded accounts
+    const normalizedUser = normalizeStr(user);
+    const normalizedDept = normalizeStr(dept);
+    
+    const account = VALID_ACCOUNTS.find(acc => 
+        normalizeStr(acc.name) === normalizedUser &&
+        normalizeStr(acc.dept) === normalizedDept &&
+        acc.key === key.trim()
+    );
+    
+    if (!account) {
+        err.textContent = 'Khóa đăng nhập, Tên đăng nhập hoặc Phòng ban không khớp với danh sách đại biểu!';
+        return;
+    }
+    
+    // Use the exact correctly capitalized name from the hardcoded list
+    const exactName = account.name;
+    const exactDept = account.dept;
+    
+    // Sync with backend files on successful login so they see all other users' uploads immediately
+    await syncWithBackendFiles();
+    
     // Save to localStorage if "Ghi nhớ phòng ban" is checked
     const remember = document.getElementById('loginRemember').checked;
     if (remember) {
-        localStorage.setItem('gov_user', user);
-        localStorage.setItem('gov_dept', dept);
+        localStorage.setItem('gov_user', exactName);
+        localStorage.setItem('gov_dept', exactDept);
     } else {
         localStorage.removeItem('gov_user');
         localStorage.removeItem('gov_dept');
     }
     
     const welcomeEl = document.getElementById('welcomeName');
-    if (welcomeEl) welcomeEl.textContent = user;
+    if (welcomeEl) welcomeEl.textContent = exactName;
     
     const scr = document.getElementById('loginScreen');
     
