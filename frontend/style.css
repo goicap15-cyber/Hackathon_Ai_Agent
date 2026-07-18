@@ -377,4 +377,4 @@ mark.hl-note{background:rgba(255,205,0,.35);border-radius:2px;padding:0 1px;colo
 .note-empty p{font-size:12.5px;line-height:1.6}
 .note-empty b{color:var(--mute)}
 
-.topbar-left{display:flex;align-items:center;gap:12px;min-width:0;flex:1;max-width:600px}
+.topbar-left{display:flex;align-items:center;gap:12px;min-width:0;flex:1}
