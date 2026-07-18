@@ -294,16 +294,29 @@ function updateSidebarCountdown(filename) {
         meetingTitle = activeM.name;
         const dPart = activeM.date.split('/');
         if (dPart.length === 3) {
-            const day = parseInt(dPart[0]);
-            const rDay = day > 1 ? day - 1 : day;
-            rDate = `${rDay.toString().padStart(2, '0')}/${dPart[1]}`;
-            mDate = `${dPart[0]}/${dPart[1]} · 08:00`;
+            const timeStored = activeM.time || '08:00';
             
-            // Dynamic countdown calculation
+            // Format receive date display
+            if (activeM.receiveDate && activeM.receiveDate !== '—') {
+                const rParts = activeM.receiveDate.split('/');
+                rDate = rParts.length >= 2 ? `${rParts[0]}/${rParts[1]}` : activeM.receiveDate;
+            } else {
+                const day = parseInt(dPart[0]);
+                const rDay = day > 1 ? day - 1 : day;
+                rDate = `${rDay.toString().padStart(2, '0')}/${dPart[1]}`;
+            }
+            
+            mDate = `${dPart[0]}/${dPart[1]} · ${timeStored}`;
+            
+            // Dynamic countdown calculation including time
             const today = new Date();
-            today.setHours(0, 0, 0, 0);
             const meetD = new Date(parseInt(dPart[2]), parseInt(dPart[1]) - 1, parseInt(dPart[0]));
-            meetD.setHours(0, 0, 0, 0);
+            const tParts = timeStored.split(':');
+            if (tParts.length === 2) {
+                meetD.setHours(parseInt(tParts[0]), parseInt(tParts[1]), 0, 0);
+            } else {
+                meetD.setHours(8, 0, 0, 0);
+            }
             
             const diffTime = meetD.getTime() - today.getTime();
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -1206,6 +1219,8 @@ function cancelNewFolder() {
 function confirmNewFolder() {
     const name = document.getElementById('newFolderName').value.trim();
     const dateInput = document.getElementById('newFolderDate').value;
+    const timeInput = document.getElementById('newFolderTime').value || '08:00';
+    const receiveDateInput = document.getElementById('newFolderReceiveDate').value;
     if (!name) return;
     
     let displayDate = '—';
@@ -1216,7 +1231,31 @@ function confirmNewFolder() {
         }
     }
     
-    meetings.push({ name, date: displayDate, docs: [], open: false });
+    let displayReceiveDate = '—';
+    if (receiveDateInput) {
+        const parts = receiveDateInput.split('-');
+        if (parts.length === 3) {
+            displayReceiveDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
+        }
+    } else if (dateInput) {
+        // Fallback to day - 1 if receive date is not specified
+        const parts = dateInput.split('-');
+        if (parts.length === 3) {
+            const day = parseInt(parts[2]);
+            const rDay = day > 1 ? day - 1 : day;
+            displayReceiveDate = `${rDay.toString().padStart(2, '0')}/${parts[1]}/${parts[0]}`;
+        }
+    }
+    
+    meetings.push({ 
+        name, 
+        date: displayDate, 
+        time: timeInput,
+        receiveDate: displayReceiveDate,
+        docs: [], 
+        open: false 
+    });
+    
     saveMeetingsToLocal();
     initMeetingsState();
     
@@ -2068,6 +2107,8 @@ async function doLogin(ev) {
     }
 }
 
+let editingMIndex = -1;
+
 function editMeetingDate() {
     let activeMi = -1;
     allMeetings.forEach((m, idx) => {
@@ -2080,37 +2121,118 @@ function editMeetingDate() {
         activeMi = selFolder;
     }
     
+    if (activeMi === -1 && allMeetings.length > 0) {
+        activeMi = 0;
+    }
+    
     if (activeMi === -1) {
         alert("Vui lòng chọn một kỳ họp để cập nhật ngày!");
         return;
     }
     
-    const m = allMeetings[activeMi];
-    const nUp = meetings.length;
-    const isPast = activeMi >= nUp;
-    const targetArray = isPast ? pastMeetings : meetings;
-    const targetIdx = isPast ? activeMi - nUp : activeMi;
+    editingMIndex = activeMi;
+    const m = allMeetings[editingMIndex];
     
-    const newDateStr = prompt(`Nhập ngày họp mới cho "${m.name}" (định dạng DD/MM/YYYY, ví dụ: 25/07/2026):`, m.date === '—' ? '' : m.date);
-    if (newDateStr === null) return; 
+    document.getElementById('schedName').value = m.name || '';
     
-    if (newDateStr.trim() === '') {
-        targetArray[targetIdx].date = '—';
-        m.date = '—';
-    } else {
-        const parts = newDateStr.split('/');
-        if (parts.length === 3 && parts[0].length <= 2 && parts[1].length <= 2 && parts[2].length === 4) {
-            const cleanDate = newDateStr.trim();
-            targetArray[targetIdx].date = cleanDate;
-            m.date = cleanDate;
+    // Set date input
+    if (m.date && m.date !== '—') {
+        const parts = m.date.split('/');
+        if (parts.length === 3) {
+            document.getElementById('schedDate').value = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
         } else {
-            alert("Định dạng ngày không hợp lệ! Vui lòng nhập đúng dạng DD/MM/YYYY.");
-            return;
+            document.getElementById('schedDate').value = '';
+        }
+    } else {
+        document.getElementById('schedDate').value = '';
+    }
+    
+    // Set time input
+    document.getElementById('schedTime').value = m.time || '08:00';
+    
+    // Set receive date input
+    if (m.receiveDate && m.receiveDate !== '—') {
+        const parts = m.receiveDate.split('/');
+        if (parts.length === 3) {
+            document.getElementById('schedReceiveDate').value = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+        } else {
+            document.getElementById('schedReceiveDate').value = '';
+        }
+    } else {
+        // Fallback: default to meeting date minus 1 day
+        if (m.date && m.date !== '—') {
+            const parts = m.date.split('/');
+            if (parts.length === 3) {
+                const day = parseInt(parts[0]);
+                const rDay = day > 1 ? day - 1 : day;
+                document.getElementById('schedReceiveDate').value = `${parts[2]}-${parts[1].padStart(2, '0')}-${rDay.toString().padStart(2, '0')}`;
+            } else {
+                document.getElementById('schedReceiveDate').value = '';
+            }
+        } else {
+            document.getElementById('schedReceiveDate').value = '';
         }
     }
     
+    document.getElementById('schedulerModal').style.display = 'flex';
+}
+
+function closeScheduler() {
+    document.getElementById('schedulerModal').style.display = 'none';
+    editingMIndex = -1;
+}
+
+function saveScheduler(ev) {
+    if (ev) ev.preventDefault();
+    if (editingMIndex === -1) return;
+    
+    const name = document.getElementById('schedName').value.trim();
+    const dateVal = document.getElementById('schedDate').value;
+    const timeVal = document.getElementById('schedTime').value;
+    const receiveDateVal = document.getElementById('schedReceiveDate').value;
+    
+    const nUp = meetings.length;
+    const isPast = editingMIndex >= nUp;
+    const targetArray = isPast ? pastMeetings : meetings;
+    const targetIdx = isPast ? editingMIndex - nUp : editingMIndex;
+    
+    const m = allMeetings[editingMIndex];
+    m.name = name;
+    targetArray[targetIdx].name = name;
+    
+    // Process dates
+    let displayDate = '—';
+    if (dateVal) {
+        const parts = dateVal.split('-');
+        if (parts.length === 3) {
+            displayDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
+        }
+    }
+    m.date = displayDate;
+    targetArray[targetIdx].date = displayDate;
+    
+    // Process time
+    m.time = timeVal || '08:00';
+    targetArray[targetIdx].time = timeVal || '08:00';
+    
+    // Process receive date
+    let displayReceiveDate = '—';
+    if (receiveDateVal) {
+        const parts = receiveDateVal.split('-');
+        if (parts.length === 3) {
+            displayReceiveDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
+        }
+    }
+    m.receiveDate = displayReceiveDate;
+    targetArray[targetIdx].receiveDate = displayReceiveDate;
+    
     saveMeetingsToLocal();
+    initMeetingsState();
     updateSidebarCountdown();
+    renderMeetings();
+    renderFolderGrid();
+    
+    closeScheduler();
 }
 
 // Register global callback functions for HTML calls
@@ -2145,6 +2267,8 @@ window.togglePass = togglePass;
 window.doLogin = doLogin;
 window.doLogout = doLogout;
 window.editMeetingDate = editMeetingDate;
+window.closeScheduler = closeScheduler;
+window.saveScheduler = saveScheduler;
 window.saveSelection = saveSelection;
 window.gotoNote = gotoNote;
 window.delNote = delNote;
