@@ -1523,7 +1523,7 @@ function animateIntro() {
     gsap.registerPlugin(ScrollTrigger);
     gsap.defaults({ duration: 0.5, ease: 'power2.out' });
     
-    window.addEventListener('load', () => {
+    const runIntro = () => {
         const mm = gsap.matchMedia();
         mm.add({ motion: '(prefers-reduced-motion: no-preference)' }, () => {
             reduce = false;
@@ -1553,7 +1553,13 @@ function animateIntro() {
             document.querySelectorAll('[data-count]').forEach(el => el.textContent = el.getAttribute('data-count'));
             return () => {};
         });
-    });
+    };
+
+    if (document.readyState === 'complete') {
+        runIntro();
+    } else {
+        window.addEventListener('load', runIntro);
+    }
 }
 
 // ---------------- WATERMARK SVG ALGORITHM ----------------
