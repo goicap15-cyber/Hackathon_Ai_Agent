@@ -1682,17 +1682,36 @@ function doLogin(ev) {
     if (welcomeEl) welcomeEl.textContent = user;
     
     const scr = document.getElementById('loginScreen');
-    const reduceNow = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (reduceNow) { 
-        document.body.classList.add('authed'); 
-        animateIntro();
-        return; 
+    
+    // Force direct entry instantly to prevent any button blockage/freeze
+    document.body.classList.add('authed');
+    
+    // Handle transition overlay animations defensively
+    try {
+        const reduceNow = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (reduceNow) { 
+            scr.style.display = 'none';
+            animateIntro();
+        } else {
+            gsap.to(scr, { autoAlpha: 0, duration: 0.45, ease: 'power2.inOut', onComplete: () => {
+                scr.style.display = 'none';
+                gsap.set(scr, { clearProps: 'all' });
+                try {
+                    animateIntro();
+                } catch (introErr) {
+                    console.error("animateIntro error:", introErr);
+                }
+            }});
+        }
+    } catch (e) {
+        console.error("Login transition animation error:", e);
+        scr.style.display = 'none';
+        try {
+            animateIntro();
+        } catch (introErr2) {
+            console.error("Fallback animateIntro error:", introErr2);
+        }
     }
-    gsap.to(scr, { autoAlpha: 0, duration: 0.45, ease: 'power2.inOut', onComplete: () => {
-        document.body.classList.add('authed');
-        gsap.set(scr, { clearProps: 'all' });
-        animateIntro();
-    }});
 }
 
 // Register global callback functions for HTML calls
