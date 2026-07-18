@@ -1092,6 +1092,12 @@ async function doDelMeet() {
     
     await Promise.all(deletePromises);
     
+    // Remove notes associated with any files in the deleted folder
+    const filenamesToDelete = src.docs.map(d => d.t);
+    notes = notes.filter(n => !filenamesToDelete.includes(n.doc));
+    saveNotesToStorage();
+    renderNotes();
+    
     // Remove from array
     if (mi < nUp) {
         meetings.splice(mi, 1);
@@ -1134,6 +1140,11 @@ async function doDelDoc() {
     
     src.docs.splice(di, 1);
     src.open = true;
+    
+    // Remove notes associated with the deleted document filename
+    notes = notes.filter(n => n.doc !== filename);
+    saveNotesToStorage();
+    renderNotes();
     
     closeConfirm();
     saveMeetingsToLocal();
