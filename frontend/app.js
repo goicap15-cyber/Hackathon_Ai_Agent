@@ -3,6 +3,8 @@
 // Global State
 let currentDoc = null;
 let chatHistory = [];
+let storedChats = JSON.parse(localStorage.getItem('gov_stored_chats') || '[]');
+let activeThreadId = null;
 let meetings = [];
 let pastMeetings = [];
 let allMeetings = [];
@@ -1834,8 +1836,7 @@ function delNoteQ(k, qi) {
 }
 
 /* ---------- Lịch sử trò chuyện ---------- */
-let storedChats = JSON.parse(localStorage.getItem('gov_stored_chats') || '[]');
-let activeThreadId = null;
+
 
 function openChatHistoryModal() {
     const modal = document.getElementById('chatHistoryModal');
