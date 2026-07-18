@@ -1276,6 +1276,7 @@ async function confirmUpload() {
 }
 
 async function selectDocumentFromLibrary(filename) {
+    activeThreadId = null; // Start fresh chat session
     showLoading('Đang nạp tài liệu...', `Đang chuẩn bị nội dung tài liệu “${filename}”`);
     try {
         const response = await fetch('/api/document/select', {
