@@ -1633,7 +1633,6 @@ function buildTrongDong() {
 /* ---------- Đăng nhập / Đăng xuất ---------- */
 function initLoginAnimation() {
     if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-        gsap.to('#trongdongLogin', { rotation: 360, duration: 300, repeat: -1, ease: 'none', transformOrigin: '50% 50%' });
         gsap.from('.login-card', { y: 24, autoAlpha: 0, scale: .97, duration: .6, ease: 'back.out(1.4)' });
         gsap.from('.login-card > *', { y: 12, autoAlpha: 0, stagger: .06, duration: .4, delay: .15, clearProps: 'all' });
     }

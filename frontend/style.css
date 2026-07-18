@@ -26,7 +26,11 @@ body{font-family:'Be Vietnam Pro',sans-serif;color:var(--body);background:var(--
 
 /* Trang đăng nhập */
 .login-screen{position:fixed;inset:0;z-index:200;background:var(--surface-dark);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;overflow:hidden}
-.login-td{position:absolute;left:50%;top:50%;width:120%;max-width:900px;aspect-ratio:1;transform:translate(-50%,-50%);pointer-events:none}
+.login-td{position:absolute;left:50%;top:50%;width:120%;max-width:900px;aspect-ratio:1;transform:translate(-50%,-50%);pointer-events:none;animation:login-spin 240s linear infinite}
+@keyframes login-spin {
+  from { transform: translate(-50%,-50%) rotate(0deg); }
+  to { transform: translate(-50%,-50%) rotate(360deg); }
+}
 .login-card{position:relative;z-index:1;background:var(--canvas);width:100%;max-width:380px;border-radius:var(--r-lg);padding:32px 30px;box-shadow:0 20px 60px rgba(0,0,0,.35);text-align:center}
 .login-emblem{width:64px;height:64px;object-fit:contain;margin:0 auto 12px;display:block;filter:drop-shadow(0 2px 6px rgba(0,0,0,.15))}
 .login-title{font-size:21px;font-weight:700;color:var(--ink);letter-spacing:-.3px}
