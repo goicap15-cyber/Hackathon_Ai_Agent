@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Lora:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=3.7">
+<link rel="stylesheet" href="style.css?v=3.8">
 <!-- Markdown Parser -->
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
@@ -260,22 +260,28 @@
     <label class="m-lbl">Thư mục kỳ họp</label>
     <div class="folder-grid" id="folderGrid"></div>
 
-    <div class="newfolder" id="newFolderRow" style="display:none; flex-direction: column; gap: 8px; margin: -10px 0 18px;">
-      <input id="newFolderName" placeholder="Tên thư mục kỳ họp mới…" style="width: 100%;" onkeydown="if(event.key==='Enter')confirmNewFolder()">
-      <div style="display: flex; gap: 8px; align-items: center; justify-content: space-between; width: 100%; flex-wrap: wrap; row-gap: 8px;">
-        <div style="display: flex; gap: 4px; align-items: center;">
-          <span style="font-size: 11px; color: var(--mute); font-weight: 600; flex-shrink: 0;">Họp lúc:</span>
-          <input id="newFolderTime" type="time" value="08:00" style="font-family: inherit; font-size: 11px; padding: 4px 6px; border: 1px solid var(--stone); border-radius: var(--r-md); outline: none; width: 68px;">
-          <input id="newFolderDate" type="date" style="font-family: inherit; font-size: 11px; padding: 4px 6px; border: 1px solid var(--stone); border-radius: var(--r-md); outline: none; width: 115px;">
+    <div class="newfolder" id="newFolderRow" style="display:none; flex-direction: column; gap: 12px; margin: -5px 0 20px; padding: 14px; background: #f7fafc; border: 1px solid #e2e8f0; border-radius: var(--r-md); box-sizing: border-box; width: 100%;">
+      <input id="newFolderName" placeholder="Tên thư mục kỳ họp mới…" style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e0; border-radius: var(--r-md); font-family: inherit; font-size: 13px; outline: none; background: #ffffff; color: #1a202c; box-sizing: border-box;" onkeydown="if(event.key==='Enter')confirmNewFolder()">
+      
+      <div style="display: grid; grid-template-columns: 1fr 1.2fr; gap: 10px; width: 100%; box-sizing: border-box;">
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <span style="font-size: 11px; color: #4a5568; font-weight: 700;">Giờ họp:</span>
+          <input id="newFolderTime" type="time" value="08:00" style="font-family: inherit; font-size: 12px; padding: 6px 8px; border: 1px solid #cbd5e0; border-radius: var(--r-md); background: #ffffff; color: #1a202c; outline: none; box-sizing: border-box; width: 100%;">
         </div>
-        <div style="display: flex; gap: 4px; align-items: center;">
-          <span style="font-size: 11px; color: var(--mute); font-weight: 600; flex-shrink: 0;">Nhận:</span>
-          <input id="newFolderReceiveDate" type="date" style="font-family: inherit; font-size: 11px; padding: 4px 6px; border: 1px solid var(--stone); border-radius: var(--r-md); outline: none; width: 115px;">
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <span style="font-size: 11px; color: #4a5568; font-weight: 700;">Ngày họp:</span>
+          <input id="newFolderDate" type="date" style="font-family: inherit; font-size: 12px; padding: 6px 8px; border: 1px solid #cbd5e0; border-radius: var(--r-md); background: #ffffff; color: #1a202c; outline: none; box-sizing: border-box; width: 100%;">
         </div>
-        <div style="display: flex; gap: 6px; margin-left: auto;">
-          <button class="btn-ghost" style="padding: 6px 10px; height: auto; font-size: 11px;" onclick="confirmNewFolder()">Tạo</button>
-          <button class="btn-ghost" style="padding: 6px 10px; height: auto; font-size: 11px;" onclick="cancelNewFolder()">Hủy</button>
-        </div>
+      </div>
+      
+      <div style="display: flex; flex-direction: column; gap: 4px; width: 100%; box-sizing: border-box;">
+        <span style="font-size: 11px; color: #4a5568; font-weight: 700;">Hạn nhận tài liệu:</span>
+        <input id="newFolderReceiveDate" type="date" style="font-family: inherit; font-size: 12px; padding: 6px 8px; border: 1px solid #cbd5e0; border-radius: var(--r-md); background: #ffffff; color: #1a202c; outline: none; box-sizing: border-box; width: 100%;">
+      </div>
+      
+      <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; width: 100%; box-sizing: border-box;">
+        <button class="btn-ghost" style="padding: 6px 12px; height: auto; font-size: 12px; font-weight: 600; border-radius: var(--r-md);" onclick="confirmNewFolder()">Tạo</button>
+        <button class="btn-ghost" style="padding: 6px 12px; height: auto; font-size: 12px; font-weight: 600; border-radius: var(--r-md);" onclick="cancelNewFolder()">Hủy</button>
       </div>
     </div>
 
@@ -352,6 +358,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
-<script src="app.js?v=3.7"></script>
+<script src="app.js?v=3.8"></script>
 </body>
 </html>

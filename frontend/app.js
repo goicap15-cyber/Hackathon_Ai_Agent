@@ -1227,7 +1227,7 @@ function cancelNewFolder() {
     document.getElementById('newFolderRow').style.display = 'none';
 }
 
-function confirmNewFolder() {
+async function confirmNewFolder() {
     const name = document.getElementById('newFolderName').value.trim();
     const dateInput = document.getElementById('newFolderDate').value;
     const timeInput = document.getElementById('newFolderTime').value || '08:00';
@@ -1268,7 +1268,7 @@ function confirmNewFolder() {
     });
     
     saveMeetingsToLocal();
-    initMeetingsState();
+    await initMeetingsState();
     
     // Add dynamic notification for the new folder/meeting
     addNotification(`Kỳ họp mới “${name}” đã được thiết lập thành công.`);
