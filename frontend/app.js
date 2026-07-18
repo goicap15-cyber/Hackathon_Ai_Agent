@@ -1548,20 +1548,23 @@ function renderAcctPanel() {
     if (!p) return;
     const currentUser = localStorage.getItem('gov_user') || 'Đại biểu';
     const currentDept = localStorage.getItem('gov_dept') || 'Đoàn Đại biểu';
+    const shortName = currentUser.split(' ').pop();
     p.innerHTML = `
-      <div class="acct-head" style="display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid #efe8d8;">
-        <div class="acct-avt" style="width: 38px; height: 38px; border-radius: 50%; background: var(--primary-pale); color: var(--primary); display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: 700;">
-          ${currentUser.split(' ').pop().charAt(0)}
+      <div class="acct-head" style="display: flex; align-items: center; gap: 12px; padding: 16px; border-bottom: 1px solid #efe8d8; background: #ffffff;">
+        <div class="acct-avt" style="width: 38px; height: 38px; border-radius: 50%; background: #fdecea; color: #da251d; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid rgba(218,37,29,0.1);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px; color: #da251d;"><path d="M20 21a8 8 0 0 0-16 0M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/></svg>
         </div>
-        <div>
-          <div class="acct-name" style="font-size: 13.5px; font-weight: 700; color: var(--ink); line-height: 1.2;">${currentUser}</div>
-          <div class="acct-dept" style="font-size: 11.5px; color: var(--mute); margin-top: 2px;">${currentDept}</div>
+        <div style="display: flex; flex-direction: column; align-items: flex-start;">
+          <div class="acct-name" style="font-size: 15px; font-weight: 700; color: #1a202c; line-height: 1.2;">${shortName}</div>
+          <div class="acct-dept" style="font-size: 12px; color: #718096; margin-top: 3px;">${currentDept}</div>
         </div>
       </div>
-      <button class="acct-logout" onclick="doLogout()" style="display: flex; align-items: center; justify-content: center; gap: 8px; width: calc(100% - 16px); margin: 8px; padding: 9px; border: 1px solid #efe8d8; background: #faf8f5; color: var(--body); font-family: inherit; font-size: 12.5px; font-weight: 700; border-radius: var(--r-md); cursor: pointer; transition: 0.15s;">
-        <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width: 15px; height: 15px;"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
-        Đăng xuất
-      </button>
+      <div style="padding: 10px 12px; background: #ffffff;">
+        <button class="acct-logout" onclick="doLogout()" style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 10px 14px; border: 1px solid #efe8d8; background: #faf8f5; color: #1a202c; font-family: inherit; font-size: 13.5px; font-weight: 700; border-radius: 9999px; cursor: pointer; transition: 0.15s; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 15px; height: 15px; color: #1a202c;"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+          Đăng xuất
+        </button>
+      </div>
     `;
 }
 
