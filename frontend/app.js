@@ -430,6 +430,7 @@ function applyNoteHighlights() {
             }
         });
     });
+}
 
 // Highly optimized single-pass RegExp approach to safely insert term spans
 function wrapTermsInDOM(htmlString, terminology) {
